@@ -160,4 +160,77 @@ export const messages: Message[] = [
       },
     ],
   },
+  {
+    id: "game-login-legit",
+    kind: "email",
+    context:
+      "You just logged in to Glimmerforge on a friend's computer to show them your base.",
+    from: { name: "Glimmerforge", address: "no-reply@glimmerforge.com" },
+    subject: "New sign-in to your account",
+    body:
+      "Hi skybolt_77,\n\n" +
+      "Your Glimmerforge account was just signed in on a new device.\n\n" +
+      "Device: Windows PC\nWhen: Today at 4:12 PM\n\n" +
+      "If this was you, you don't need to do anything.\n\n" +
+      "If it wasn't, open the Glimmerforge app and change your password in Settings. " +
+      "We will never ask for your password by email.\n\n" +
+      "The Glimmerforge Team",
+    links: [],
+    isPhish: false,
+    highlights: [
+      {
+        match: "no-reply@glimmerforge.com",
+        note: "Glimmerforge's real address: just the name, then .com. Nothing added.",
+      },
+      { match: "Hi skybolt_77", note: "It uses your actual username." },
+      {
+        match: "If this was you, you don't need to do anything.",
+        note: "No threat, no deadline. Real alerts stay calm.",
+      },
+      {
+        match: "open the Glimmerforge app and change your password in Settings",
+        note: "It tells you to go there yourself instead of handing you a link.",
+      },
+    ],
+  },
+  {
+    id: "free-gems-dm-phish",
+    kind: "dm",
+    context:
+      "You're in a big Moonveil Arena fan server, full of people you don't know.",
+    from: { name: "Moonveil Rewards", address: "@moonveil.rewards.official" },
+    body:
+      "Congrats!! You were picked for our anniversary giveaway: 10,000 free Gems! " +
+      "To claim, verify your account here within 1 hour: {{0}}\n\n" +
+      "Only 50 spots left!",
+    links: [
+      {
+        text: "moonveil-gems.com/claim",
+        realUrl: "https://moonveil-gems.com/claim",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "@moonveil.rewards.official",
+        type: "lookalike-sender",
+        note: 'Games announce giveaways in the game, not through random DMs. Putting "official" in a username proves nothing.',
+      },
+      {
+        match: "10,000 free Gems",
+        type: "too-good-to-be-true",
+        note: "Free currency you didn't earn is the oldest bait there is.",
+      },
+      {
+        match: "within 1 hour",
+        type: "urgency",
+        note: 'A timer and "only 50 spots left" are there to rush you past thinking.',
+      },
+      {
+        match: "verify your account",
+        type: "asks-for-credentials",
+        note: '"Verify your account" really means "type your password into our fake page."',
+      },
+    ],
+  },
 ];
