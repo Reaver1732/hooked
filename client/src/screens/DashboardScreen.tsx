@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { ClassSummary } from '../../../shared/api.ts';
 import { FLAG_LABELS } from '../../../shared/flags.ts';
 import { api, ApiRequestError } from '../class/api.ts';
@@ -11,6 +11,8 @@ const KIND_LABELS = { email: 'Email', text: 'Text', dm: 'DM' } as const;
 export function DashboardScreen({ credentials }: { credentials: TeacherCredentials }) {
   const { code, teacherKey } = credentials;
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const playersHeadingRef = useRef<HTMLHeadingElement>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [summary, setSummary] = useState<ClassSummary | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   // `fatal` stops polling (bad key, class gone); otherwise the last good data stays up.
@@ -54,6 +56,9 @@ export function DashboardScreen({ credentials }: { credentials: TeacherCredentia
     try {
       await api.removePlayer(code, teacherKey, id);
       await refresh();
+      // The focused Remove button is gone now; say what happened and keep focus in the list.
+      setNotice(`Removed ${nickname}.`);
+      playersHeadingRef.current?.focus();
     } catch (err) {
       setError({ message: err instanceof ApiRequestError ? err.message : 'Couldn’t remove that player.', fatal: false });
     }
@@ -137,7 +142,10 @@ export function DashboardScreen({ credentials }: { credentials: TeacherCredentia
             </ol>
           </Panel>
 
-          <Panel title="Players">
+          <Panel title="Players" headingRef={playersHeadingRef}>
+            <p aria-live="polite" className="text-sm text-slate-600 empty:hidden">
+              {notice}
+            </p>
             {summary.players.length === 0 ? (
               <p className="mt-2 text-sm text-slate-600">Nobody has joined yet. Share the code {code}.</p>
             ) : (
@@ -179,10 +187,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+type PanelProps = { title: string; subtitle?: string; children: ReactNode; headingRef?: RefObject<HTMLHeadingElement | null> };
+
+function Panel({ title, subtitle, children, headingRef }: PanelProps) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <h3 ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-lg font-semibold outline-none">
+        {title}
+      </h3>
       {subtitle && <p className="mt-1 text-sm text-slate-600">{subtitle}</p>}
       {children}
     </section>

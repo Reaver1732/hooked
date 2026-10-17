@@ -110,7 +110,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
               data-lpignore="true"
               data-bwignore=""
               data-form-type="other"
-              className={`min-h-12 w-full min-w-0 rounded-lg border border-slate-300 px-3 font-mono text-base ${FOCUS_RING}`}
+              className={`min-h-12 w-full min-w-0 rounded-lg border border-slate-500 px-3 font-mono text-base ${FOCUS_RING}`}
             />
             <button
               type="button"
@@ -205,7 +205,7 @@ function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> 
       <p className="mt-1 font-mono text-sm break-all">
         <mark className="rounded bg-amber-200 px-0.5 text-inherit">{prefix}</mark>
         <span className="sr-only"> (sent) </span>
-        <span className="text-slate-400">{rest}</span>
+        <span className="text-slate-500">{rest}</span>
         <span className="sr-only"> (stayed on your device)</span>
       </p>
       <div aria-hidden className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">

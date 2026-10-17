@@ -5,19 +5,28 @@ import { BACK_LINK, PRIMARY_BUTTON, TEXT_INPUT } from '../components/buttonStyle
 
 export type ClassSession = { code: string; nickname: string; playerId: string };
 
-type Props = { onJoined: (session: ClassSession) => void; onBack: () => void };
+type Props = {
+  onJoined: (session: ClassSession) => void;
+  onBack: () => void;
+  /** Filled in from a join link, so the student only needs a nickname. */
+  initialCode?: string;
+};
 
-export function JoinScreen({ onJoined, onBack }: Props) {
+export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
   const codeId = useId();
   const nicknameId = useId();
   const errorId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [code, setCode] = useState('');
+  const nicknameRef = useRef<HTMLInputElement>(null);
+  const [code, setCode] = useState(initialCode);
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => headingRef.current?.focus({ preventScroll: true }), []);
+  useEffect(() => {
+    if (initialCode) nicknameRef.current?.focus();
+    else headingRef.current?.focus({ preventScroll: true });
+  }, [initialCode]);
 
   async function join(e: FormEvent) {
     e.preventDefault();
@@ -70,6 +79,7 @@ export function JoinScreen({ onJoined, onBack }: Props) {
           </label>
           <p className="text-xs text-slate-500">Not your full name. Up to {NICKNAME_MAX} characters.</p>
           <input
+            ref={nicknameRef}
             id={nicknameId}
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}

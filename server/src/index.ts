@@ -10,6 +10,12 @@ loadLocalEnv();
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
+// On Railway, exactly one proxy (the edge) sits in front of the app and appends the
+// client address to X-Forwarded-For, so trust that one hop and no more: anything a
+// client puts further left in the header is ignored. Locally nothing is trusted.
+// RAILWAY_ENVIRONMENT_ID is injected by Railway at runtime.
+app.set('trust proxy', process.env.RAILWAY_ENVIRONMENT_ID ? 1 : false);
+
 app.use(compression());
 
 app.get('/api/health', (_req, res) => {

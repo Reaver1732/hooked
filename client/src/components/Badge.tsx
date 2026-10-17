@@ -2,7 +2,7 @@ export type Tone = 'flag' | 'safe';
 
 const TONE_CLASSES: Record<Tone, string> = {
   flag: 'bg-red-600 text-white',
-  safe: 'bg-emerald-600 text-white',
+  safe: 'bg-emerald-700 text-white',
 };
 
 export function Badge({ n, tone, className = '' }: { n: number; tone: Tone; className?: string }) {

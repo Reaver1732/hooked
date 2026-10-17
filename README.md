@@ -33,6 +33,10 @@ DATABASE_URL=postgresql://...
 
 To change the schema, edit `server/prisma/schema.prisma` and run `npm run db:migrate:dev -w server -- --name <change>`.
 
+Students can join with the code or by opening `<site>/?join=CODE` (the teacher screen shows it as a QR code), which fills in the code for them.
+
+Class endpoints are rate limited per IP (in memory, per server instance): 10 class creations per hour, 30 joins per 10 minutes, 300 answers per 10 minutes. A whole classroom behind one school network shares an IP, so these limits apply to the class together.
+
 ### Railway
 
 The `hooked` service is configured in the Railway dashboard (no config file):

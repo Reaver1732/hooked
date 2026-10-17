@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
 import type { ClassSession } from './JoinScreen.tsx';
 
@@ -11,9 +12,20 @@ type Props = {
 };
 
 export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTeacher, onPasswordCheck }: Props) {
+  const joinRef = useRef<HTMLButtonElement>(null);
+  const hadSession = useRef(session !== null);
+
+  // "Leave class" removes itself, so hand focus to the "Join a class" button that replaces it.
+  useEffect(() => {
+    if (hadSession.current && !session) joinRef.current?.focus();
+    hadSession.current = session !== null;
+  }, [session]);
+
   return (
     <section className="flex flex-col items-start gap-6 py-10 sm:py-20">
-      <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">Hooked</h1>
+      <h1 tabIndex={-1} className="text-5xl font-bold tracking-tight outline-none sm:text-6xl">
+        Hooked
+      </h1>
       <p className="max-w-md text-lg text-slate-600">
         Sort real-looking emails and texts into phish or legit, and learn the red flags you missed.
       </p>
@@ -33,7 +45,7 @@ export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTea
           Start
         </button>
         {!session && (
-          <button type="button" onClick={onJoinClass} className={SECONDARY_BUTTON}>
+          <button ref={joinRef} type="button" onClick={onJoinClass} className={SECONDARY_BUTTON}>
             Join a class
           </button>
         )}

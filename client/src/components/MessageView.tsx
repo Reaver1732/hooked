@@ -26,7 +26,7 @@ function MessageCard({ message, revealed }: Props) {
     const avatar = (size: string) => (
       <div
         aria-hidden
-        className={`grid shrink-0 place-items-center rounded-full bg-linear-to-br from-violet-500 to-fuchsia-500 font-semibold text-white ${size}`}
+        className={`grid shrink-0 place-items-center rounded-full bg-linear-to-br from-violet-600 to-fuchsia-700 font-semibold text-white ${size}`}
       >
         {initial}
       </div>
@@ -40,13 +40,13 @@ function MessageCard({ message, revealed }: Props) {
               <span className="sr-only">From: </span>
               <HighlightedText pieces={fields.fromName} tone={tone} />
             </p>
-            <p className="text-sm break-all text-slate-500">
+            <p className="text-sm break-all text-slate-600">
               <HighlightedText pieces={fields.fromAddress} tone={tone} />
             </p>
           </div>
         </header>
         <div className="min-h-40 px-3 py-5">
-          <p className="mb-3 text-center text-[11px] text-slate-400">Today</p>
+          <p className="mb-3 text-center text-[11px] text-slate-500">Today</p>
           <div className="flex items-end gap-2">
             {avatar('size-7 text-xs')}
             <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 leading-snug wrap-break-word whitespace-pre-line">
@@ -74,12 +74,12 @@ function MessageCard({ message, revealed }: Props) {
             <span className="sr-only">From: </span>
             <HighlightedText pieces={fields.fromName} tone={tone} />
           </p>
-          <p className="text-sm break-all text-slate-500">
+          <p className="text-sm break-all text-slate-600">
             <HighlightedText pieces={fields.fromAddress} tone={tone} />
           </p>
         </header>
         <div className="min-h-48 px-3 py-5">
-          <p className="mb-2 text-center text-[11px] text-slate-400">Text Message · Today</p>
+          <p className="mb-2 text-center text-[11px] text-slate-500">Text Message · Today</p>
           <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-slate-200 px-3.5 py-2.5 leading-snug wrap-break-word whitespace-pre-line">
             <HighlightedText pieces={fields.body} tone={tone} />
           </div>

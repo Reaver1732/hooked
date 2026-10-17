@@ -5,6 +5,6 @@ export const PRIMARY_BUTTON = `inline-flex min-h-12 items-center justify-center 
 
 export const SECONDARY_BUTTON = `inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-base font-semibold text-slate-900 hover:bg-slate-100 ${FOCUS_RING}`;
 
-export const TEXT_INPUT = `min-h-12 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-base ${FOCUS_RING}`;
+export const TEXT_INPUT = `min-h-12 w-full min-w-0 rounded-lg border border-slate-500 bg-white px-3 text-base ${FOCUS_RING}`;
 
 export const BACK_LINK = `self-start rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 ${FOCUS_RING}`;

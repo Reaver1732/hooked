@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { messages, type Message } from '../../shared/messages.ts';
 import { api, ApiRequestError } from './class/api.ts';
 import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
+import { takeJoinParam } from './class/joinLink.ts';
 import type { Answer } from './game/types.ts';
 import { DashboardScreen } from './screens/DashboardScreen.tsx';
 import { JoinScreen, type ClassSession } from './screens/JoinScreen.tsx';
@@ -19,13 +20,17 @@ type GameScreen =
 type Screen =
   | GameScreen
   | { name: 'password'; back: GameScreen }
-  | { name: 'join' }
+  | { name: 'join'; initialCode?: string }
   | { name: 'teacher' }
   | { name: 'dashboard'; credentials: TeacherCredentials };
 
 function initialScreen(): Screen {
   const credentials = readDashboardHash();
   if (credentials) return { name: 'dashboard', credentials };
+
+  // A join link or QR code: <site>/?join=CODE
+  const joinCode = takeJoinParam();
+  if (joinCode) return { name: 'join', initialCode: joinCode };
 
   // Dev-only preview: ?msg=<id> opens that message directly. import.meta.env.DEV is
   // replaced with `false` in production builds, so this whole branch is dropped.
@@ -47,6 +52,21 @@ export default function App() {
   const [round, setRound] = useState(0);
   const [session, setSession] = useState<ClassSession | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const isFirstScreen = useRef(true);
+
+  // Most screens move focus to their own heading on mount. If a screen change left
+  // focus on <body> (the focused control was unmounted), put it on the new screen's
+  // heading so keyboard and screen-reader users aren't dropped at the top of the page.
+  // Child effects run before this one, so screens that manage focus themselves win.
+  useEffect(() => {
+    if (isFirstScreen.current) {
+      isFirstScreen.current = false;
+      return;
+    }
+    if (document.activeElement && document.activeElement !== document.body) return;
+    mainRef.current?.querySelector<HTMLElement>('h1[tabindex], h2[tabindex]')?.focus({ preventScroll: true });
+  }, [screen]);
 
   // A dashboard link pasted into an already-open tab only changes the hash.
   useEffect(() => {
@@ -111,7 +131,7 @@ export default function App() {
           {syncError}
         </p>
       )}
-      <main>
+      <main ref={mainRef}>
         {screen.name === 'start' && (
           <StartScreen
             session={session}
@@ -141,6 +161,7 @@ export default function App() {
         {screen.name === 'password' && <PasswordScreen onBack={() => setScreen(screen.back)} />}
         {screen.name === 'join' && (
           <JoinScreen
+            initialCode={screen.initialCode}
             onBack={() => setScreen({ name: 'start' })}
             onJoined={(joined) => {
               setSession(joined);

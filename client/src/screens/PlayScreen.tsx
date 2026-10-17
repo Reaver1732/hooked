@@ -86,7 +86,7 @@ export function PlayScreen({ deck, onFinish, onAnswer }: Props) {
           </p>
         </div>
         <div aria-hidden className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-slate-900 transition-[width] duration-300" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full bg-slate-900 motion-safe:transition-[width] motion-safe:duration-300" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export function PlayScreen({ deck, onFinish, onAnswer }: Props) {
 
 const VARIANT_CLASSES = {
   phish: { base: 'border-red-300 bg-red-50 text-red-800 enabled:hover:bg-red-100', chosen: 'border-red-600 bg-red-600 text-white' },
-  legit: { base: 'border-emerald-300 bg-emerald-50 text-emerald-800 enabled:hover:bg-emerald-100', chosen: 'border-emerald-600 bg-emerald-600 text-white' },
+  legit: { base: 'border-emerald-300 bg-emerald-50 text-emerald-800 enabled:hover:bg-emerald-100', chosen: 'border-emerald-700 bg-emerald-700 text-white' },
 };
 
 type AnswerButtonProps = {

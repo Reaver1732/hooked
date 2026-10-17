@@ -13,6 +13,7 @@ import {
 import { mostMissedFlags } from '../../shared/flags.ts';
 import { messages, type Message } from '../../shared/messages.ts';
 import { getPrisma } from './db.ts';
+import { answerLimit, createClassLimit, joinClassLimit } from './rateLimits.ts';
 import { Prisma, type PrismaClient } from './generated/prisma/client.ts';
 
 const messagesById = new Map(messages.map((m) => [m.id, m]));
@@ -96,7 +97,7 @@ async function requireTeacher(req: Request) {
 
 export const classesRouter = Router();
 
-classesRouter.post('/classes', async (req, res) => {
+classesRouter.post('/classes', createClassLimit, async (req, res) => {
   parse(emptyBody, req.body ?? {});
   const teacherKey = randomBytes(32).toString('base64url');
   // Codes are random; retry on the rare collision with an existing class.
@@ -112,7 +113,7 @@ classesRouter.post('/classes', async (req, res) => {
   throw new HttpError(503, 'Couldn’t create a class code, try again');
 });
 
-classesRouter.post('/classes/:code/join', async (req, res) => {
+classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
   const code = parse(codeSchema, req.params.code);
   const { nickname } = parse(joinBody, req.body);
 
@@ -127,7 +128,7 @@ classesRouter.post('/classes/:code/join', async (req, res) => {
   res.status(201).json({ playerId: player.id } satisfies JoinClassResponse);
 });
 
-classesRouter.post('/answers', async (req, res) => {
+classesRouter.post('/answers', answerLimit, async (req, res) => {
   const { playerId, messageId, choice } = parse(answerBody, req.body);
   const message = messagesById.get(messageId);
   if (!message) throw new HttpError(400, 'Unknown message');

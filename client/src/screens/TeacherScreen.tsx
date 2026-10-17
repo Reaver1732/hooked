@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '../class/api.ts';
 import { dashboardHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
+import { joinUrl } from '../class/joinLink.ts';
+import { JoinQrCode } from '../components/JoinQrCode.tsx';
 import { BACK_LINK, FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
 
 type Props = { onBack: () => void; onOpenDashboard: (credentials: TeacherCredentials) => void };
@@ -65,17 +67,16 @@ export function TeacherScreen({ onBack, onOpenDashboard }: Props) {
       <button type="button" onClick={onBack} className={BACK_LINK}>
         ← Back
       </button>
-      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center">
+      <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center">
         <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="text-lg font-medium text-slate-600 outline-none">
-          Join at this site with code
+          Scan to join, or enter the class code
         </h2>
-        <p
-          aria-label={`Class code ${created.code.split('').join(' ')}`}
-          className="mt-2 font-mono text-6xl font-bold tracking-[0.15em] wrap-anywhere sm:text-8xl"
-        >
-          {created.code}
+        <JoinQrCode url={joinUrl(created.code)} />
+        <p className="font-mono text-6xl font-bold tracking-[0.15em] wrap-anywhere sm:text-8xl">
+          <span className="sr-only">Class code: {created.code.split('').join(' ')}</span>
+          <span aria-hidden>{created.code}</span>
         </p>
-        <p className="mt-3 text-sm text-slate-500">{window.location.host}</p>
+        <p className="font-mono text-base break-all text-slate-700 sm:text-lg">{joinUrl(created.code)}</p>
       </div>
 
       <section aria-labelledby="dashboard-link-heading" className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
