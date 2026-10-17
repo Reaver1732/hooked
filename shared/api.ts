@@ -5,6 +5,7 @@ import type { FlagType, Message } from './messages.ts';
 export const CLASS_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const CLASS_CODE_LENGTH = 6;
 export const NICKNAME_MAX = 20;
+export const MAX_PLAYERS_PER_CLASS = 60;
 
 export type Choice = 'phish' | 'legit';
 

@@ -35,7 +35,13 @@ To change the schema, edit `server/prisma/schema.prisma` and run `npm run db:mig
 
 Students can join with the code or by opening `<site>/?join=CODE` (the teacher screen shows it as a QR code), which fills in the code for them.
 
-Class endpoints are rate limited per IP (in memory, per server instance): 10 class creations per hour, 30 joins per 10 minutes, 300 answers per 10 minutes. A whole classroom behind one school network shares an IP, so these limits apply to the class together.
+Limits, designed so a classroom or venue sharing one IP is never blocked (rate limits are in memory, per server instance):
+
+- Class creation: 10 per hour per IP
+- Joins: 300 per 10 minutes per IP, and at most 60 players per class
+- Answers: 60 per minute per player (unknown player ids are rejected before counting)
+
+Rate-limit hits are logged by limit name only; no IPs or player ids are logged.
 
 ### Railway
 

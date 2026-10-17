@@ -16,6 +16,9 @@ model Class {
   code           String   @unique
   /// SHA-256 of the teacher key. The key itself is only ever shown to the teacher.
   teacherKeyHash String
+  /// Kept in step with Player rows by the join/remove SQL in classes.ts, so the
+  /// 60-player cap can be enforced atomically in a single statement.
+  playerCount    Int      @default(0)
   createdAt      DateTime @default(now())
   players        Player[]
 }

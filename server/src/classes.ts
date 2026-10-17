@@ -1,9 +1,10 @@
-import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   CLASS_CODE_ALPHABET,
   CLASS_CODE_LENGTH,
+  MAX_PLAYERS_PER_CLASS,
   NICKNAME_MAX,
   type ClassSummary,
   type CreateClassResponse,
@@ -119,22 +120,50 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
 
   const cls = await db().class.findUnique({ where: { code } });
   if (!cls) throw new HttpError(404, 'No class with that code');
+
   const taken = await db().player.findFirst({
     where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
   });
   if (taken) throw new HttpError(409, 'Someone in this class already has that nickname');
 
-  const player = await db().player.create({ data: { classId: cls.id, nickname } });
-  res.status(201).json({ playerId: player.id } satisfies JoinClassResponse);
+  // Take a seat and add the player in one statement. Concurrent joins queue on the
+  // Class row lock and re-check "playerCount" < cap against the latest value, so the
+  // cap holds without a long-running transaction (a whole class may join at once).
+  const playerId = randomUUID();
+  const inserted = await db().$queryRaw<{ id: string }[]>`
+    WITH seat AS (
+      UPDATE "Class" SET "playerCount" = "playerCount" + 1
+      WHERE id = ${cls.id} AND "playerCount" < ${MAX_PLAYERS_PER_CLASS}
+      RETURNING id
+    )
+    INSERT INTO "Player" (id, "classId", nickname)
+    SELECT ${playerId}, seat.id, ${nickname} FROM seat
+    RETURNING id`;
+  if (inserted.length === 0) {
+    throw new HttpError(409, `This class is full (${MAX_PLAYERS_PER_CLASS} players). Ask your teacher to start another class.`);
+  }
+  res.status(201).json({ playerId } satisfies JoinClassResponse);
 });
 
-classesRouter.post('/answers', answerLimit, async (req, res) => {
-  const { playerId, messageId, choice } = parse(answerBody, req.body);
-  const message = messagesById.get(messageId);
-  if (!message) throw new HttpError(400, 'Unknown message');
+type ValidAnswer = z.infer<typeof answerBody> & { message: Message };
 
-  const player = await db().player.findUnique({ where: { id: playerId } });
+/**
+ * Validates an answer and checks its player exists before the per-player rate limit
+ * runs, so made-up player ids are rejected without being counted.
+ */
+async function validateAnswer(req: Request, res: Response, next: NextFunction) {
+  const body = parse(answerBody, req.body);
+  const message = messagesById.get(body.messageId);
+  if (!message) throw new HttpError(400, 'Unknown message');
+  const player = await db().player.findUnique({ where: { id: body.playerId }, select: { id: true } });
   if (!player) throw new HttpError(404, 'Player not found. You may have been removed from the class.');
+  res.locals.playerId = player.id;
+  res.locals.answer = { ...body, message } satisfies ValidAnswer;
+  next();
+}
+
+classesRouter.post('/answers', validateAnswer, answerLimit, async (_req, res) => {
+  const { playerId, messageId, choice, message } = res.locals.answer as ValidAnswer;
 
   // Graded here from shared data; the client never tells us what's correct.
   const correct = (choice === 'phish') === message.isPhish;
@@ -198,8 +227,15 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
 classesRouter.delete('/classes/:code/players/:playerId', async (req, res) => {
   const cls = await requireTeacher(req);
   const playerId = parse(z.uuid(), req.params.playerId);
-  const { count } = await db().player.deleteMany({ where: { id: playerId, classId: cls.id } });
-  if (count === 0) throw new HttpError(404, 'Player not found in this class');
+  // Delete the player (answers cascade) and free their seat in one statement.
+  const removed = await db().$queryRaw<{ id: string }[]>`
+    WITH gone AS (
+      DELETE FROM "Player" WHERE id = ${playerId} AND "classId" = ${cls.id} RETURNING "classId"
+    )
+    UPDATE "Class" SET "playerCount" = "playerCount" - 1
+    WHERE id IN (SELECT "classId" FROM gone)
+    RETURNING id`;
+  if (removed.length === 0) throw new HttpError(404, 'Player not found in this class');
   res.status(204).end();
 });
 
