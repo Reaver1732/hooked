@@ -10,11 +10,13 @@ loadLocalEnv();
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
-// On Railway, exactly one proxy (the edge) sits in front of the app and appends the
-// client address to X-Forwarded-For, so trust that one hop and no more: anything a
-// client puts further left in the header is ignored. Locally nothing is trusted.
-// RAILWAY_ENVIRONMENT_ID is injected by Railway at runtime.
-app.set('trust proxy', process.env.RAILWAY_ENVIRONMENT_ID ? 1 : false);
+// On Railway, two proxies sit in front of the app. Observed in production: the edge
+// replaces any client-sent X-Forwarded-For with the client's address, and an internal
+// hop then appends the edge's own (152.233.40.x), so the app receives
+// "X-Forwarded-For: <client>, <edge>". Trusting exactly 2 hops makes req.ip the client;
+// trusting 1 would make every client look like the edge and share one rate limit.
+// Locally nothing is trusted. RAILWAY_ENVIRONMENT_ID is injected by Railway at runtime.
+app.set('trust proxy', process.env.RAILWAY_ENVIRONMENT_ID ? 2 : false);
 
 app.use(compression());
 

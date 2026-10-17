@@ -4,7 +4,7 @@ const MINUTE = 60 * 1000;
 
 /**
  * Per-IP limiter (in memory, so per server instance). req.ip is the real client
- * address only because index.ts sets `trust proxy` to the one Railway edge hop.
+ * address only because index.ts sets `trust proxy` to the two Railway proxy hops.
  */
 function perIp(name: string, windowMs: number, limit: number, tooMany: string) {
   return rateLimit({
