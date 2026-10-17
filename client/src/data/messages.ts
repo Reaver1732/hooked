@@ -106,4 +106,29 @@ export const messages: Message[] = [
       },
     ],
   },
+  {
+    id: 'parcel-fee-phish',
+    kind: 'text',
+    from: { name: 'Unknown', address: '+1 (555) 014-2290' },
+    body: 'ParcelPoint: your package is on hold for an unpaid $1.99 redelivery fee. Pay today to avoid return to sender: {{0}}',
+    links: [{ text: 'parcelpoint-redelivery.co/pay', realUrl: 'http://parcelpoint-redelivery.co/pay?trk=PP19920' }],
+    isPhish: true,
+    highlights: [
+      {
+        match: '+1 (555) 014-2290',
+        type: 'lookalike-sender',
+        note: 'Delivery companies text from short codes, not a random personal number.',
+      },
+      {
+        match: 'Pay today to avoid return to sender',
+        type: 'urgency',
+        note: 'A tiny fee plus a deadline is a classic way to rush you into paying.',
+      },
+      {
+        match: 'parcelpoint-redelivery.co',
+        type: 'mismatched-link',
+        note: 'Not ParcelPoint\'s own site: "-redelivery.co" is a separate domain anyone can register.',
+      },
+    ],
+  },
 ];

@@ -1,34 +1,39 @@
-import { useEffect, useState } from 'react';
-import { MessageBody } from './components/MessageBody.tsx';
+import { useState } from 'react';
 import { messages } from './data/messages.ts';
+import { shuffle } from './game/shuffle.ts';
+import type { Answer } from './game/types.ts';
+import { PlayScreen } from './screens/PlayScreen.tsx';
+import { ResultsScreen } from './screens/ResultsScreen.tsx';
+import { StartScreen } from './screens/StartScreen.tsx';
 
-type Health = 'checking' | 'ok' | 'down';
+type Screen =
+  | { name: 'start' }
+  | { name: 'play'; deck: typeof messages; round: number }
+  | { name: 'results'; answers: Answer[]; round: number };
 
 export default function App() {
-  const [health, setHealth] = useState<Health>('checking');
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => setHealth(res.ok ? 'ok' : 'down'))
-      .catch(() => setHealth('down'));
-  }, []);
+  const [screen, setScreen] = useState<Screen>({ name: 'start' });
+  const round = screen.name === 'start' ? 0 : screen.round;
+  const play = () => setScreen({ name: 'play', deck: shuffle(messages), round: round + 1 });
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 p-6 text-slate-800">
-      <h1 className="text-4xl font-bold tracking-tight">Hooked</h1>
-      <p className="text-slate-600">Spot the phish. Game screens coming soon.</p>
-      <p className="text-sm">
-        API:{' '}
-        <span className={health === 'ok' ? 'text-green-600' : health === 'down' ? 'text-red-600' : 'text-slate-500'}>
-          {health}
-        </span>
-        {' · '}
-        {messages.length} messages loaded
-      </p>
-      <div className="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
-        <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Body preview (hover or tab to the link)</p>
-        <MessageBody message={messages[0]} />
-      </div>
-    </main>
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10">
+      {screen.name !== 'start' && (
+        <header className="mb-6">
+          <h1 className="text-lg font-bold tracking-tight">Hooked</h1>
+        </header>
+      )}
+      <main>
+        {screen.name === 'start' && <StartScreen onStart={play} />}
+        {screen.name === 'play' && (
+          <PlayScreen
+            key={screen.round}
+            deck={screen.deck}
+            onFinish={(answers) => setScreen({ name: 'results', answers, round: screen.round })}
+          />
+        )}
+        {screen.name === 'results' && <ResultsScreen answers={screen.answers} onPlayAgain={play} />}
+      </main>
+    </div>
   );
 }
