@@ -1,7 +1,8 @@
 // Verifies every message's link tokens and highlights. Exits non-zero on any problem:
 // - each {{n}} in a body must point at an existing link, and every link must be referenced
-// - only emails may have a subject (texts and DMs never show one)
-// - each highlight.match must appear exactly once in from / subject / rendered body
+// - only emails may have a subject or attachments (texts and DMs never show them)
+// - each highlight.match must appear exactly once in from / subject / rendered body /
+//   attachment names
 import { messages, type Message } from '../shared/messages.ts';
 import { parseBody, renderBodyText } from '../shared/linkTokens.ts';
 
@@ -13,7 +14,8 @@ function countOccurrences(haystack: string, needle: string): number {
 
 function searchableFields(m: Message): string[] {
   const subject = m.kind === 'email' ? (m.subject ?? '') : '';
-  return [m.from.name, m.from.address, subject, renderBodyText(m)];
+  const attachmentNames = m.kind === 'email' ? (m.attachments ?? []).map((a) => a.name) : [];
+  return [m.from.name, m.from.address, subject, renderBodyText(m), ...attachmentNames];
 }
 
 const errors: string[] = [];
@@ -28,6 +30,12 @@ for (const m of messages) {
   if (m.kind !== 'email' && m.subject !== undefined) {
     errors.push(`[${m.id}] a ${m.kind} has no subject line; remove "subject"`);
   }
+  if (m.kind !== 'email' && m.attachments !== undefined) {
+    errors.push(`[${m.id}] only emails can have attachments; remove "attachments" from this ${m.kind}`);
+  }
+  m.attachments?.forEach((a, i) => {
+    if (!a.name.trim() || !a.size.trim()) errors.push(`[${m.id}] attachments[${i}] needs both a name and a size`);
+  });
 
   const referenced = new Set<number>();
   for (const part of parseBody(m.body)) {

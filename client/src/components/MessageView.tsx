@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { Message } from '../../../shared/messages.ts';
-import { highlightFields, type Piece } from '../game/highlights.ts';
+import { highlightFields, type HighlightedFields } from '../game/highlights.ts';
+import { AttachmentChip } from './AttachmentChip.tsx';
 import type { Tone } from './Badge.tsx';
 import { HighlightedText } from './HighlightedText.tsx';
 import { ArchiveIcon, ChevronLeftIcon, InboxIcon, SendIcon, SignalIcons, TrashIcon } from './icons.tsx';
@@ -23,7 +24,7 @@ export function MessageView({ message, revealed }: Props) {
   );
 }
 
-type CardProps = { message: Message; fields: Record<'fromName' | 'fromAddress' | 'subject' | 'body', Piece[]>; tone: Tone };
+type CardProps = { message: Message; fields: HighlightedFields; tone: Tone };
 
 function MessageCard({ message, revealed }: Props) {
   const fields = useMemo(() => highlightFields(message, revealed), [message, revealed]);
@@ -36,6 +37,7 @@ function MessageCard({ message, revealed }: Props) {
 const initialOf = (name: string) => name.match(/[\p{L}\p{N}]/u)?.[0].toUpperCase() ?? '?';
 
 function MailApp({ message, fields, tone }: CardProps) {
+  const attachments = message.attachments ?? [];
   return (
     <article aria-label="Email" className="rounded-2xl border border-slate-300 bg-white shadow-md">
       <div
@@ -78,6 +80,24 @@ function MailApp({ message, fields, tone }: CardProps) {
       <div className="border-t border-slate-100 px-4 pt-4 pb-6 leading-relaxed wrap-break-word whitespace-pre-line sm:px-6">
         <HighlightedText pieces={fields.body} tone={tone} />
       </div>
+      {attachments.length > 0 && (
+        <div className="border-t border-slate-100 px-4 pt-3 pb-5 sm:px-6">
+          <p id={`${message.id}-attachments`} className="text-xs font-semibold text-slate-700">
+            {attachments.length} {attachments.length === 1 ? 'attachment' : 'attachments'}
+          </p>
+          <ul aria-labelledby={`${message.id}-attachments`} className="mt-2 flex flex-wrap gap-2">
+            {attachments.map((a, i) => (
+              <li key={i} className="max-w-full">
+                <AttachmentChip
+                  fileName={a.name}
+                  label={<HighlightedText pieces={fields.attachments[i] ?? []} tone={tone} />}
+                  size={a.size}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   );
 }

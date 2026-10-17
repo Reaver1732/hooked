@@ -1,8 +1,15 @@
 import { parseBody } from '../../../shared/linkTokens.ts';
 import type { FakeLink, Message } from '../../../shared/messages.ts';
 
-export type Field = 'fromName' | 'fromAddress' | 'subject' | 'body';
-const FIELDS: Field[] = ['fromName', 'fromAddress', 'subject', 'body'];
+/** Every displayed text a highlight can land in, as rendered pieces. */
+export type HighlightedFields = {
+  fromName: Piece[];
+  fromAddress: Piece[];
+  subject: Piece[];
+  body: Piece[];
+  /** One entry per attachment name (emails only), in order. */
+  attachments: Piece[][];
+};
 
 type Segment = { kind: 'text'; text: string } | { kind: 'link'; link: FakeLink };
 
@@ -20,17 +27,21 @@ export type Piece =
 
 const segmentText = (s: Segment) => (s.kind === 'text' ? s.text : s.link.text);
 
-function fieldSegments(message: Message): Record<Field, Segment[]> {
-  return {
-    fromName: [{ kind: 'text', text: message.from.name }],
-    fromAddress: [{ kind: 'text', text: message.from.address }],
-    subject: message.kind === 'email' && message.subject ? [{ kind: 'text', text: message.subject }] : [],
-    body: parseBody(message.body).map((p): Segment => {
+/** The searchable fields in a fixed order; each is a list of segments. */
+function fieldSegments(message: Message): Segment[][] {
+  const text = (t: string): Segment[] => [{ kind: 'text', text: t }];
+  const isEmail = message.kind === 'email';
+  return [
+    text(message.from.name),
+    text(message.from.address),
+    isEmail && message.subject ? text(message.subject) : [],
+    parseBody(message.body).map((p): Segment => {
       if (p.kind === 'text') return { kind: 'text', text: p.text };
       const link = message.links[p.index];
       return link ? { kind: 'link', link } : { kind: 'text', text: p.raw };
     }),
-  };
+    ...(isEmail ? (message.attachments ?? []).map((a) => text(a.name)) : []),
+  ];
 }
 
 function toPieces(segments: Segment[], ranges: Range[]): Piece[] {
@@ -73,27 +84,23 @@ function toPieces(segments: Segment[], ranges: Range[]): Piece[] {
 }
 
 /** Splits each displayed field into pieces; with `revealed` false nothing is marked. */
-export function highlightFields(message: Message, revealed: boolean): Record<Field, Piece[]> {
-  const segments = fieldSegments(message);
-  const ranges: Record<Field, Range[]> = { fromName: [], fromAddress: [], subject: [], body: [] };
+export function highlightFields(message: Message, revealed: boolean): HighlightedFields {
+  const fields = fieldSegments(message);
+  const ranges: Range[][] = fields.map(() => []);
 
   if (revealed) {
     message.highlights.forEach((h, index) => {
       if (!h.match) return;
-      for (const field of FIELDS) {
-        const start = segments[field].map(segmentText).join('').indexOf(h.match);
+      for (let f = 0; f < fields.length; f++) {
+        const start = fields[f].map(segmentText).join('').indexOf(h.match);
         if (start !== -1) {
-          ranges[field].push({ index, start, end: start + h.match.length });
+          ranges[f].push({ index, start, end: start + h.match.length });
           break;
         }
       }
     });
   }
 
-  return {
-    fromName: toPieces(segments.fromName, ranges.fromName),
-    fromAddress: toPieces(segments.fromAddress, ranges.fromAddress),
-    subject: toPieces(segments.subject, ranges.subject),
-    body: toPieces(segments.body, ranges.body),
-  };
+  const [fromName, fromAddress, subject, body, ...attachments] = fields.map((segments, f) => toPieces(segments, ranges[f]));
+  return { fromName, fromAddress, subject, body, attachments };
 }
