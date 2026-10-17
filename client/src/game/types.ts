@@ -1,4 +1,4 @@
-import type { Message } from '../data/messages.ts';
+import type { Message } from '../../../shared/messages.ts';
 
 export type Answer = { message: Message; guessedPhish: boolean };
 

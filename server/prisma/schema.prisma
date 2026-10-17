@@ -1,0 +1,50 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  runtime             = "nodejs"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Class {
+  id             String   @id @default(uuid())
+  /// 6 characters from an unambiguous alphabet (no 0/O, 1/I/L).
+  code           String   @unique
+  /// SHA-256 of the teacher key. The key itself is only ever shown to the teacher.
+  teacherKeyHash String
+  createdAt      DateTime @default(now())
+  players        Player[]
+}
+
+model Player {
+  id        String   @id @default(uuid())
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  nickname  String   @db.VarChar(20)
+  createdAt DateTime @default(now())
+  answers   Answer[]
+
+  @@index([classId])
+}
+
+enum Choice {
+  phish
+  legit
+}
+
+model Answer {
+  id        String   @id @default(uuid())
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  messageId String
+  choice    Choice
+  /// Graded by the server from shared/messages.ts, never taken from the client.
+  correct   Boolean
+  createdAt DateTime @default(now())
+
+  @@unique([playerId, messageId])
+}

@@ -1,9 +1,23 @@
 import { useMemo } from 'react';
-import type { Message } from '../data/messages.ts';
+import type { Message } from '../../../shared/messages.ts';
 import { highlightFields } from '../game/highlights.ts';
 import { HighlightedText } from './HighlightedText.tsx';
 
-export function MessageView({ message, revealed }: { message: Message; revealed: boolean }) {
+type Props = { message: Message; revealed: boolean };
+
+export function MessageView({ message, revealed }: Props) {
+  if (!message.context) return <MessageCard message={message} revealed={revealed} />;
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-slate-600">
+        <span className="font-semibold text-slate-800">Situation:</span> {message.context}
+      </p>
+      <MessageCard message={message} revealed={revealed} />
+    </div>
+  );
+}
+
+function MessageCard({ message, revealed }: Props) {
   const fields = useMemo(() => highlightFields(message, revealed), [message, revealed]);
   const tone = message.isPhish ? 'flag' : 'safe';
 

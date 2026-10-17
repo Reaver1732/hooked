@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
-import { FLAG_LABELS } from '../data/flags.ts';
-import type { FlagType } from '../data/messages.ts';
+import { FLAG_LABELS, mostMissedFlags } from '../../../shared/flags.ts';
 import { isCorrect, type Answer } from '../game/types.ts';
 
-type Props = { answers: Answer[]; onPlayAgain: () => void; onPasswordCheck: () => void };
+type Props = {
+  answers: Answer[];
+  onPlayAgain: () => void;
+  onPasswordCheck: () => void;
+  /** Set when playing in a class. */
+  classCode?: string;
+};
 
-export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck }: Props) {
+export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -16,15 +21,7 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck }: Props) 
   const score = answers.filter(isCorrect).length;
 
   const missedPhish = answers.filter((a) => a.message.isPhish && !a.guessedPhish);
-  const flagCounts = new Map<FlagType, number>();
-  for (const a of missedPhish) {
-    for (const h of a.message.highlights) {
-      if (h.type) flagCounts.set(h.type, (flagCounts.get(h.type) ?? 0) + 1);
-    }
-  }
-  const mostMissed = [...flagCounts].sort(
-    ([typeA, countA], [typeB, countB]) => countB - countA || FLAG_LABELS[typeA].localeCompare(FLAG_LABELS[typeB]),
-  );
+  const mostMissed = mostMissedFlags(answers);
 
   const legitTotal = answers.filter((a) => !a.message.isPhish).length;
   const falseAlarms = answers.filter((a) => !a.message.isPhish && a.guessedPhish).length;
@@ -38,6 +35,12 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck }: Props) 
         <p className="mt-1 text-6xl font-bold tracking-tight">
           {score} / {answers.length}
         </p>
+        {classCode && (
+          <p className="mt-2 text-sm text-slate-600">
+            Your answers went to class <span className="font-mono font-semibold">{classCode}</span>. If you play
+            again, only your first answer to each message counts for the class.
+          </p>
+        )}
       </div>
 
       <section aria-labelledby="missed-heading" className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">

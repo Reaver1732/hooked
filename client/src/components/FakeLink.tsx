@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import type { FakeLink as FakeLinkData } from '../data/messages.ts';
+import type { FakeLink as FakeLinkData } from '../../../shared/messages.ts';
 
 const VIEWPORT_MARGIN = 8;
 

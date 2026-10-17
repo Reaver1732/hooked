@@ -2,8 +2,8 @@
 // - each {{n}} in a body must point at an existing link, and every link must be referenced
 // - only emails may have a subject (texts and DMs never show one)
 // - each highlight.match must appear exactly once in from / subject / rendered body
-import { messages, type Message } from '../client/src/data/messages.ts';
-import { parseBody, renderBodyText } from '../client/src/data/linkTokens.ts';
+import { messages, type Message } from '../shared/messages.ts';
+import { parseBody, renderBodyText } from '../shared/linkTokens.ts';
 
 function countOccurrences(haystack: string, needle: string): number {
   let count = 0;

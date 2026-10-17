@@ -1,5 +1,5 @@
-import { FLAG_LABELS } from '../data/flags.ts';
-import type { Message } from '../data/messages.ts';
+import { FLAG_LABELS } from '../../../shared/flags.ts';
+import type { Message } from '../../../shared/messages.ts';
 import { Badge } from './Badge.tsx';
 
 export function HighlightNotes({ message }: { message: Message }) {

@@ -5,11 +5,15 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node"],
-    "rootDir": "src",
+    // The server also compiles ../shared, so output mirrors the repo layout:
+    // dist/server/src/index.js and dist/shared/*.js.
+    "rootDir": "..",
     "outDir": "dist",
+    // Source imports use .ts extensions (shared with the Vite client); emit them as .js.
+    "rewriteRelativeImportExtensions": true,
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "include": ["src"]
+  "include": ["src", "../shared"]
 }

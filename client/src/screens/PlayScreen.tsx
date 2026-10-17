@@ -2,16 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FOCUS_RING, PRIMARY_BUTTON } from '../components/buttonStyles.ts';
 import { HighlightNotes } from '../components/HighlightNotes.tsx';
 import { MessageView } from '../components/MessageView.tsx';
-import type { Message } from '../data/messages.ts';
+import type { Message } from '../../../shared/messages.ts';
 import { isCorrect, type Answer } from '../game/types.ts';
 
-type Props = { deck: Message[]; onFinish: (answers: Answer[]) => void };
+type Props = {
+  deck: Message[];
+  onFinish: (answers: Answer[]) => void;
+  /** Called once per message when it's first answered (used to report to a class). */
+  onAnswer?: (answer: Answer) => void;
+};
 
-export function PlayScreen({ deck, onFinish }: Props) {
+export function PlayScreen({ deck, onFinish, onAnswer }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
+  // Guards against two answers for one message (e.g. P then L before a re-render).
+  const lastAnsweredRef = useRef(-1);
 
   const message = deck[index];
   const answer: Answer | undefined = answers[index];
@@ -19,9 +26,14 @@ export function PlayScreen({ deck, onFinish }: Props) {
   const isLast = index === deck.length - 1;
 
   const choose = useCallback(
-    (guessedPhish: boolean) =>
-      setAnswers((prev) => (prev.length > index ? prev : [...prev, { message, guessedPhish }])),
-    [index, message],
+    (guessedPhish: boolean) => {
+      if (lastAnsweredRef.current >= index) return;
+      lastAnsweredRef.current = index;
+      const newAnswer = { message, guessedPhish };
+      setAnswers((prev) => [...prev, newAnswer]);
+      onAnswer?.(newAnswer);
+    },
+    [index, message, onAnswer],
   );
 
   const next = useCallback(() => {

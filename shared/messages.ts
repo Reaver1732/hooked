@@ -23,6 +23,9 @@ export type Message = {
   // dm: display name + @username.
   from: { name: string; address: string };
   subject?: string; // emails only; texts and DMs have no subject
+  // Optional scene-setting shown above the message ("Situation: ..."), visible before
+  // answering. Not part of the message itself, so highlights can't point into it.
+  context?: string;
 
   body: string;
   links: FakeLink[];
@@ -174,6 +177,7 @@ export const messages: Message[] = [
   {
     id: "copyright-dm-phish",
     kind: "dm",
+    context: "You posted a video of your band covering a popular song yesterday.",
     from: { name: "Chirp Support", address: "@chirp.support.team" },
     body: [
       "Hello, your account has been reported for copyright infringement and will be deleted in 12 hours.",

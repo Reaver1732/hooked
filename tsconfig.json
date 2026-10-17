@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["scripts"]
+  "include": ["scripts", "shared"]
 }

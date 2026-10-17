@@ -1,5 +1,5 @@
-import { parseBody } from '../data/linkTokens.ts';
-import type { FakeLink, Message } from '../data/messages.ts';
+import { parseBody } from '../../../shared/linkTokens.ts';
+import type { FakeLink, Message } from '../../../shared/messages.ts';
 
 export type Field = 'fromName' | 'fromAddress' | 'subject' | 'body';
 const FIELDS: Field[] = ['fromName', 'fromAddress', 'subject', 'body'];

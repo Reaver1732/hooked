@@ -4,3 +4,7 @@ export const FOCUS_RING =
 export const PRIMARY_BUTTON = `inline-flex min-h-12 items-center justify-center rounded-xl bg-slate-900 px-6 text-base font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-slate-900 ${FOCUS_RING}`;
 
 export const SECONDARY_BUTTON = `inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-base font-semibold text-slate-900 hover:bg-slate-100 ${FOCUS_RING}`;
+
+export const TEXT_INPUT = `min-h-12 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-base ${FOCUS_RING}`;
+
+export const BACK_LINK = `self-start rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 ${FOCUS_RING}`;

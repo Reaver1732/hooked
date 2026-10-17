@@ -12,8 +12,9 @@
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,magenta \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run check:messages && npm run build -w client && npm run build -w server",
-    "start": "node server/dist/index.js",
-    "check:messages": "tsx scripts/check-messages.ts"
+    "start": "node server/dist/server/src/index.js",
+    "check:messages": "tsx scripts/check-messages.ts",
+    "db:migrate": "npm run db:migrate -w server"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
