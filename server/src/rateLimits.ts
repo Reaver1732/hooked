@@ -17,7 +17,9 @@ function perIp(name: string, windowMs: number, limit: number, tooMany: string) {
       const resetTime = (req as AugmentedRequest).rateLimit?.resetTime;
       const minutes = resetTime ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / MINUTE)) : null;
       const wait = minutes ? `Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` : 'Try again later.';
-      console.warn(`rate limit "${name}" hit by ${req.ip}`);
+      console.warn(
+        `rate limit "${name}" hit by ${req.ip} (x-forwarded-for: ${req.get('x-forwarded-for') ?? '-'}; x-real-ip: ${req.get('x-real-ip') ?? '-'})`,
+      );
       res.status(options.statusCode).json({ error: `${tooMany} ${wait}` });
     },
   });
