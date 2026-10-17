@@ -296,4 +296,78 @@ export const messages: Message[] = [
       },
     ],
   },
+  {
+    id: "field-trip-legit",
+    kind: "email",
+    context: "Your class is going to the science museum next week.",
+    from: { name: "Ms. Ortiz", address: "mortiz@harborpinesschools.org" },
+    subject: "Field trip form due Friday",
+    body:
+      "Hi everyone,\n\n" +
+      "Reminder that permission forms for next Thursday's science museum trip are due Friday. " +
+      "I sent a paper copy home with you on Monday. If you lost it, there's an extra copy on the table by my door.\n\n" +
+      "The $8 fee goes to the front office. Please don't bring cash to my room.\n\n" +
+      "Thanks!\nMs. Ortiz",
+    links: [],
+    isPhish: false,
+    highlights: [
+      {
+        match: "mortiz@harborpinesschools.org",
+        note: "Your teacher's real school address.",
+      },
+      {
+        match: "Hi everyone",
+        note: "A general greeting is normal when a teacher emails the whole class. It only matters alongside other red flags.",
+      },
+      {
+        match: "there's an extra copy on the table by my door",
+        note: "No link, no sign-in. Everything happens in person.",
+      },
+      {
+        match: "The $8 fee goes to the front office.",
+        note: "Money gets paid in person at school, not through a link.",
+      },
+    ],
+  },
+  {
+    id: "scholarship-phish",
+    kind: "email",
+    context: "You're a high school junior starting to think about college.",
+    from: {
+      name: "Bright Path Scholarship Foundation",
+      address: "awards@brightpath-fund.org",
+    },
+    subject: "Congratulations! You've been awarded $5,000",
+    body:
+      "Dear Student,\n\n" +
+      "Based on your school records, you have been selected to receive a $5,000 Bright Path Scholarship.\n\n" +
+      "To release your award, we need a one-time $25 processing fee and your Social Security number for tax purposes. " +
+      "Complete your claim by Friday: {{0}}\n\n" +
+      "Bright Path Scholarship Foundation",
+    links: [
+      {
+        text: "Claim my scholarship",
+        realUrl: "https://brightpath-awards.net/claim",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "Dear Student",
+        type: "generic-greeting",
+        note: "They claim to have your school records but don't know your name.",
+      },
+      {
+        match:
+          "you have been selected to receive a $5,000 Bright Path Scholarship",
+        type: "too-good-to-be-true",
+        note: "You can't win a scholarship you never applied for.",
+      },
+      {
+        match: "$25 processing fee and your Social Security number",
+        type: "asks-for-credentials",
+        note: "Real scholarships never charge you to receive money. Paying to get paid is always a scam.",
+      },
+    ],
+  },
 ];
