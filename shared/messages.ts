@@ -40,65 +40,17 @@ export type Message = {
 
 export const messages: Message[] = [
   {
-    id: "real-code-legit",
-    kind: "text",
-    context: "You're logging in to Glimmerforge on your new phone.",
-    from: { name: "Glimmerforge", address: "55501" },
-    body:
-      "Glimmerforge: 482913 is your login code. " +
-      "Don't share this code with anyone. Glimmerforge will never ask you for it.",
-    links: [],
-    isPhish: false,
-    highlights: [
-      {
-        match: "482913 is your login code",
-        note: "You just tried to log in, so you expected this. A code you didn't ask for means someone else is trying to get in.",
-      },
-      {
-        match: "Don't share this code with anyone.",
-        note: 'Real services tell you never to share codes. Anyone who asks for one, even a "friend," is trying to get into your account.',
-      },
-    ],
-  },
-  {
-    id: "hacked-friend-dm-phish",
-    kind: "dm",
-    context:
-      "Jayden is a friend from school. You usually just talk about games.",
-    from: { name: "Jayden", address: "@jaydenplays" },
-    body: "yo is this u in this video?? everyone is sharing it {{0}}",
-    links: [
-      {
-        text: "clipz.watch/v/8Hq2",
-        realUrl: "https://clipz-watch.login-verify.co/v/8Hq2",
-      },
-    ],
-    isPhish: true,
-    highlights: [
-      {
-        match: "is this u in this video??",
-        type: "urgency",
-        note: "Panic gets you to click before you think. If it doesn't sound like your friend, ask them another way, like in person or by text.",
-      },
-      {
-        match: "clipz.watch/v/8Hq2",
-        type: "mismatched-link",
-        note: "It looks like a video link, but it goes to login-verify.co. A video site that makes you log in first is a trap.",
-      },
-    ],
-  },
-  {
     id: "package-fee-phish",
     kind: "text",
     context: "Your family orders stuff online all the time.",
     from: { name: "Unknown", address: "(414) 555-0182" },
     body:
-      "SwiftParcel: Your package is on hold due to an unpaid $1.99 delivery fee. " +
+      "Parcelwick: Your package is on hold due to an unpaid $1.99 delivery fee. " +
       "Pay within 24 hours or it will be returned: {{0}}",
     links: [
       {
-        text: "swiftparcel-redelivery.com/pay",
-        realUrl: "https://swiftparcel-redelivery.com/pay",
+        text: "parcelwick-redelivery.com/pay",
+        realUrl: "https://parcelwick-redelivery.com/pay",
       },
     ],
     isPhish: true,
@@ -114,127 +66,9 @@ export const messages: Message[] = [
         note: "A short deadline so you pay before you ask a parent whether anything is even coming.",
       },
       {
-        match: "swiftparcel-redelivery.com/pay",
+        match: "parcelwick-redelivery.com/pay",
         type: "lookalike-sender",
         note: "Delivery companies use their own short website. Extra words like \"-redelivery\" mean it's someone else's site.",
-      },
-    ],
-  },
-  {
-    id: "game-login-phish",
-    kind: "email",
-    context: "You play Glimmerforge on your laptop at home.",
-    from: {
-      name: "Glimmerforge Security",
-      address: "security@glimmerforge-support.net",
-    },
-    subject: "New sign-in to your account",
-    body:
-      "Hello Player,\n\n" +
-      "We noticed a sign-in to your Glimmerforge account from a new device.\n\n" +
-      "Device: Windows PC\nLocation: Unrecognized\n\n" +
-      "If this wasn't you, secure your account now or it will be locked: {{0}}\n\n" +
-      "The Glimmerforge Team",
-    links: [
-      {
-        text: "Secure my account",
-        realUrl: "https://glimmerforge-support.net/verify",
-      },
-    ],
-    isPhish: true,
-    highlights: [
-      {
-        match: "security@glimmerforge-support.net",
-        type: "lookalike-sender",
-        note: 'Glimmerforge\'s real emails come from @glimmerforge.com. Adding "-support" makes it a completely different website.',
-      },
-      {
-        match: "Hello Player",
-        type: "generic-greeting",
-        note: "Your real game account knows your username.",
-      },
-      {
-        match: "or it will be locked",
-        type: "urgency",
-        note: "Fear of losing your account is the hook. Scammers want you to act fast.",
-      },
-      {
-        match: "Secure my account",
-        type: "asks-for-credentials",
-        note: "This button leads to a fake sign-in page. If you're worried, open the game yourself and change your password there.",
-      },
-    ],
-  },
-  {
-    id: "game-login-legit",
-    kind: "email",
-    context:
-      "You just logged in to Glimmerforge on a friend's computer to show them your base.",
-    from: { name: "Glimmerforge", address: "no-reply@glimmerforge.com" },
-    subject: "New sign-in to your account",
-    body:
-      "Hi skybolt_77,\n\n" +
-      "Your Glimmerforge account was just signed in on a new device.\n\n" +
-      "Device: Windows PC\nWhen: Today at 4:12 PM\n\n" +
-      "If this was you, you don't need to do anything.\n\n" +
-      "If it wasn't, open the Glimmerforge app and change your password in Settings. " +
-      "We will never ask for your password by email.\n\n" +
-      "The Glimmerforge Team",
-    links: [],
-    isPhish: false,
-    highlights: [
-      {
-        match: "no-reply@glimmerforge.com",
-        note: "Glimmerforge's real address: just the name, then .com. Nothing added.",
-      },
-      { match: "Hi skybolt_77", note: "It uses your actual username." },
-      {
-        match: "If this was you, you don't need to do anything.",
-        note: "No threat, no deadline. Real alerts stay calm.",
-      },
-      {
-        match: "open the Glimmerforge app and change your password in Settings",
-        note: "It tells you to go there yourself instead of handing you a link.",
-      },
-    ],
-  },
-  {
-    id: "free-gems-dm-phish",
-    kind: "dm",
-    context:
-      "You're in a big Moonveil Arena fan server, full of people you don't know.",
-    from: { name: "Moonveil Rewards", address: "@moonveil.rewards.official" },
-    body:
-      "Congrats!! You were picked for our anniversary giveaway: 10,000 free Gems! " +
-      "To claim, verify your account here within 1 hour: {{0}}\n\n" +
-      "Only 50 spots left!",
-    links: [
-      {
-        text: "moonveil-gems.com/claim",
-        realUrl: "https://moonveil-gems.com/claim",
-      },
-    ],
-    isPhish: true,
-    highlights: [
-      {
-        match: "@moonveil.rewards.official",
-        type: "lookalike-sender",
-        note: 'Games announce giveaways in the game, not through random DMs. Putting "official" in a username proves nothing.',
-      },
-      {
-        match: "10,000 free Gems",
-        type: "too-good-to-be-true",
-        note: "Free currency you didn't earn is the oldest bait there is.",
-      },
-      {
-        match: "within 1 hour",
-        type: "urgency",
-        note: 'A timer and "only 50 spots left" are there to rush you past thinking.',
-      },
-      {
-        match: "verify your account",
-        type: "asks-for-credentials",
-        note: '"Verify your account" really means "type your password into our fake page."',
       },
     ],
   },
@@ -266,38 +100,80 @@ export const messages: Message[] = [
     ],
   },
   {
-    id: "storage-full-phish",
-    kind: "email",
-    context: "You use your school account for classwork and saving files.",
-    from: { name: "HPSD IT Help Desk", address: "helpdesk@harborpines-it.com" },
-    subject: "Your storage is 98% full",
+    id: "free-gems-dm-phish",
+    kind: "dm",
+    context:
+      "You're in a big Moonveil Arena fan server, full of people you don't know.",
+    from: { name: "Moonveil Rewards", address: "@moonveil.rewards.official" },
     body:
-      "Your school account storage is almost full (14.7 GB of 15 GB).\n\n" +
-      "When it's full, you won't be able to send email or save work, and older files may be deleted.\n\n" +
-      "Students can upgrade to 50 GB for free: {{0}}\n\n" +
-      "HPSD IT Help Desk",
+      "Congrats!! You were picked for our anniversary giveaway: 10,000 free Gems! " +
+      "To claim, verify your account here: {{0}}",
     links: [
       {
-        text: "Upgrade my storage",
-        realUrl: "https://harborpines-it.com/storage/login",
+        text: "moonveil-gems.com/claim",
+        realUrl: "https://moonveil-gems.com/claim",
       },
     ],
     isPhish: true,
     highlights: [
       {
-        match: "helpdesk@harborpines-it.com",
+        match: "@moonveil.rewards.official",
         type: "lookalike-sender",
-        note: "Your school's IT team uses @harborpinesschools.org like everyone else at school.",
+        note: 'Games announce giveaways in the game, not through random DMs. Putting "official" in a username proves nothing.',
       },
       {
-        match: "older files may be deleted",
-        type: "urgency",
-        note: "Threatening your schoolwork is meant to make you panic and click.",
+        match: "10,000 free Gems",
+        type: "too-good-to-be-true",
+        note: "Free currency you didn't earn is the oldest bait there is.",
       },
       {
-        match: "Upgrade my storage",
+        match: "verify your account",
         type: "asks-for-credentials",
-        note: "Real storage warnings tell you to delete old files. They don't offer upgrades through a link that asks you to sign in.",
+        note: '"Verify your account" really means "type your password into our fake page."',
+      },
+    ],
+  },
+  {
+    id: "code-scam-phish",
+    kind: "text",
+    context: "You're doing homework when this text comes in.",
+    from: { name: "Unknown", address: "(920) 555-0147" },
+    body:
+      "hey sorry!! i was making a Glimmerforge account and put in your number by accident. " +
+      "you should have gotten a 6 digit code, can u send it to me real quick? thx",
+    links: [],
+    isPhish: true,
+    highlights: [
+      {
+        match: "can u send it to me",
+        type: "asks-for-credentials",
+        note: "That code was sent to you because someone is trying to get into an account tied to your number. Probably yours.",
+      },
+      {
+        match: "real quick",
+        type: "urgency",
+        note: "Rushing you so you send it before you think about why a stranger needs your code.",
+      },
+    ],
+  },
+  {
+    id: "real-code-legit",
+    kind: "text",
+    context: "You're logging in to Glimmerforge on your new phone.",
+    from: { name: "Glimmerforge", address: "55501" },
+    body:
+      "Glimmerforge: 482913 is your login code. " +
+      "Don't share this code with anyone. Glimmerforge will never ask you for it.",
+    links: [],
+    isPhish: false,
+    highlights: [
+      {
+        match: "482913 is your login code",
+        note: "You just tried to log in, so you expected this. A code you didn't ask for means someone else is trying to get in.",
+      },
+      {
+        match: "Don't share this code with anyone.",
+        note: 'Real services tell you never to share codes. Anyone who asks for one, even a "friend," is trying to get into your account.',
       },
     ],
   },
@@ -402,37 +278,138 @@ export const messages: Message[] = [
     ],
   },
   {
-    id: "photo-zip-phish",
+    id: "storage-full-phish",
     kind: "email",
-    context: "Picture day at school was two weeks ago.",
-    from: {
-      name: "Lumen School Photos",
-      address: "orders@lumen-photos-delivery.com",
-    },
-    subject: "Your picture day photos are ready!",
+    context: "You use your school account for classwork and saving files.",
+    from: { name: "HPSD IT Help Desk", address: "helpdesk@harborpines-it.com" },
+    subject: "Your storage is 98% full",
     body:
-      "Hi there,\n\n" +
-      "Great news, your picture day photos are ready! Open the attached file to preview your photos and choose your package.\n\n" +
-      "Special price ends tonight at midnight.\n\n" +
-      "Lumen School Photos",
-    attachments: [{ name: "Your_Photos_Preview.zip", size: "2.1 MB" }],
-    links: [],
+      "Your school account storage is almost full (14.7 GB of 15 GB).\n\n" +
+      "When it's full, you won't be able to send email or save work, and older files may be deleted.\n\n" +
+      "Students can upgrade to 50 GB for free: {{0}}\n\n" +
+      "HPSD IT Help Desk",
+    links: [
+      {
+        text: "Upgrade my storage",
+        realUrl: "https://harborpines-it.com/storage/login",
+      },
+    ],
     isPhish: true,
     highlights: [
       {
-        match: "Hi there",
-        type: "generic-greeting",
-        note: "The photo company has your name. They'd use it.",
+        match: "helpdesk@harborpines-it.com",
+        type: "lookalike-sender",
+        note: "Your school's IT team uses @harborpinesschools.org like everyone else at school.",
       },
       {
-        match: "Your_Photos_Preview.zip",
-        type: "unexpected-attachment",
-        note: "Photo previews don't come as .zip files. Surprise attachments, especially .zip, .exe, or .html, can install malware or open fake sign-in pages.",
-      },
-      {
-        match: "Special price ends tonight at midnight.",
+        match: "older files may be deleted",
         type: "urgency",
-        note: "A rushed deadline so you open the file before you ask a parent.",
+        note: "Threatening your schoolwork is meant to make you panic and click.",
+      },
+      {
+        match: "Upgrade my storage",
+        type: "asks-for-credentials",
+        note: "Real storage warnings tell you to delete old files. They don't offer upgrades through a link that asks you to sign in.",
+      },
+    ],
+  },
+  {
+    id: "game-login-phish",
+    kind: "email",
+    context: "You play Glimmerforge on your laptop at home.",
+    from: {
+      name: "Glimmerforge Security",
+      address: "security@glimmerforge-support.net",
+    },
+    subject: "New sign-in to your account",
+    body:
+      "Hello Player,\n\n" +
+      "We noticed a sign-in to your Glimmerforge account from a new device.\n\n" +
+      "Device: Windows PC\nLocation: Unrecognized\n\n" +
+      "If this wasn't you, secure your account now: {{0}}\n\n" +
+      "The Glimmerforge Team",
+    links: [
+      {
+        text: "Secure my account",
+        realUrl: "https://glimmerforge-support.net/verify",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "security@glimmerforge-support.net",
+        type: "lookalike-sender",
+        note: 'Glimmerforge\'s real emails come from @glimmerforge.com. Adding "-support" makes it a completely different website.',
+      },
+      {
+        match: "Hello Player",
+        type: "generic-greeting",
+        note: "Your real game account knows your username.",
+      },
+      {
+        match: "Secure my account",
+        type: "asks-for-credentials",
+        note: "This button leads to a fake sign-in page. If you're worried, open the game yourself and change your password there.",
+      },
+    ],
+  },
+  {
+    id: "game-login-legit",
+    kind: "email",
+    context:
+      "You just logged in to Glimmerforge on a friend's computer to show them your base.",
+    from: { name: "Glimmerforge", address: "no-reply@glimmerforge.com" },
+    subject: "New sign-in to your account",
+    body:
+      "Hi skybolt_77,\n\n" +
+      "Your Glimmerforge account was just signed in on a new device.\n\n" +
+      "Device: Windows PC\nWhen: Today at 4:12 PM\n\n" +
+      "If this was you, you don't need to do anything.\n\n" +
+      "If it wasn't, open the Glimmerforge app and change your password in Settings. " +
+      "We will never ask for your password by email.\n\n" +
+      "The Glimmerforge Team",
+    links: [],
+    isPhish: false,
+    highlights: [
+      {
+        match: "no-reply@glimmerforge.com",
+        note: "Glimmerforge's real address: just the name, then .com. Nothing added.",
+      },
+      { match: "Hi skybolt_77", note: "It uses your actual username." },
+      {
+        match: "If this was you, you don't need to do anything.",
+        note: "No threat, no deadline. Real alerts stay calm.",
+      },
+      {
+        match: "open the Glimmerforge app and change your password in Settings",
+        note: "It tells you to go there yourself instead of handing you a link.",
+      },
+    ],
+  },
+  {
+    id: "hacked-friend-dm-phish",
+    kind: "dm",
+    context:
+      "Jayden is a friend from school. You usually just talk about games.",
+    from: { name: "Jayden", address: "@jaydenplays" },
+    body: "yo is this u in this video?? everyone is sharing it {{0}}",
+    links: [
+      {
+        text: "clipz.watch/v/8Hq2",
+        realUrl: "https://clipz-watch.login-verify.co/v/8Hq2",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "is this u in this video??",
+        type: "urgency",
+        note: "Panic gets you to click before you think. If it doesn't sound like your friend, ask them another way, like in person or by text.",
+      },
+      {
+        match: "clipz.watch/v/8Hq2",
+        type: "mismatched-link",
+        note: "It looks like a video link, but it goes to login-verify.co. A video site that makes you log in first is a trap.",
       },
     ],
   },
@@ -473,12 +450,47 @@ export const messages: Message[] = [
     ],
   },
   {
+    id: "photo-zip-phish",
+    kind: "email",
+    context: "Picture day at school was two weeks ago.",
+    from: {
+      name: "Lumen School Photos",
+      address: "orders@lumen-photos-delivery.com",
+    },
+    subject: "Your picture day photos are ready!",
+    body:
+      "Hi there,\n\n" +
+      "Great news, your picture day photos are ready! Open the attached file to preview your photos and choose your package.\n\n" +
+      "Special price ends tonight at midnight.\n\n" +
+      "Lumen School Photos",
+    attachments: [{ name: "Your_Photos_Preview.zip", size: "2.1 MB" }],
+    links: [],
+    isPhish: true,
+    highlights: [
+      {
+        match: "Hi there",
+        type: "generic-greeting",
+        note: "The photo company has your name. They'd use it.",
+      },
+      {
+        match: "Your_Photos_Preview.zip",
+        type: "unexpected-attachment",
+        note: "Photo previews don't come as .zip files. Surprise attachments, especially .zip, .exe, or .html, can install malware or open fake sign-in pages.",
+      },
+      {
+        match: "Special price ends tonight at midnight.",
+        type: "urgency",
+        note: "A rushed deadline so you open the file before you ask a parent.",
+      },
+    ],
+  },
+  {
     id: "remote-job-dm-phish",
     kind: "dm",
     context: "You posted that you're looking for a part-time job.",
     from: {
-      name: "Hiring Team | Northline Careers",
-      address: "@northline.careers.hr",
+      name: "Hiring Team | Velloway Careers",
+      address: "@velloway.careers.hr",
     },
     body:
       "Hi! We saw your post. We have a remote assistant job, $400/week, only 5 hours a week, no experience needed. " +
