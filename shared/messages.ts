@@ -436,4 +436,73 @@ export const messages: Message[] = [
       },
     ],
   },
+  {
+    id: "shared-doc-legit",
+    kind: "email",
+    context: "In class today, Mr. Patel said he'd share the lab instructions.",
+    from: {
+      name: "Mr. Patel (via Harbor Pines Docs)",
+      address: "docs-noreply@harborpinesschools.org",
+    },
+    subject: "Mr. Patel shared a document with you",
+    body:
+      "Mr. Patel shared a document with you:\n\n" +
+      '"Lab 4 Instructions"\n\n' +
+      "Read these before class Thursday.\n\n" +
+      "{{0}}",
+    links: [
+      {
+        text: "Open in Docs",
+        realUrl: "https://docs.harborpinesschools.org/d/lab-4-instructions",
+      },
+    ],
+    isPhish: false,
+    highlights: [
+      {
+        match: "docs-noreply@harborpinesschools.org",
+        note: "Sent from the school's real domain.",
+      },
+      {
+        match: "Lab 4 Instructions",
+        note: "Exactly what he said he'd send. You were expecting it.",
+      },
+      {
+        match: "Open in Docs",
+        note: 'Goes to docs.harborpinesschools.org, the real school site. You can also just open Docs yourself and find it under "Shared with me."',
+      },
+    ],
+  },
+  {
+    id: "remote-job-dm-phish",
+    kind: "dm",
+    context: "You posted that you're looking for a part-time job.",
+    from: {
+      name: "Hiring Team | Northline Careers",
+      address: "@northline.careers.hr",
+    },
+    body:
+      "Hi! We saw your post. We have a remote assistant job, $400/week, only 5 hours a week, no experience needed. " +
+      "To get started, send us your full name, address, phone number, and a photo of your ID so we can set up direct deposit. " +
+      "Spots fill fast!",
+    links: [],
+    isPhish: true,
+    highlights: [
+      {
+        match: "$400/week, only 5 hours a week, no experience needed",
+        type: "too-good-to-be-true",
+        note: "That's $80 an hour with no experience. Real jobs don't pay like that.",
+      },
+      {
+        match:
+          "send us your full name, address, phone number, and a photo of your ID",
+        type: "asks-for-credentials",
+        note: "Real employers don't hire through DMs or ask for your ID there. This is how identity theft starts.",
+      },
+      {
+        match: "Spots fill fast!",
+        type: "urgency",
+        note: "Pressure to answer before you can tell a parent.",
+      },
+    ],
+  },
 ];
