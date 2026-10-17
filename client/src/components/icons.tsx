@@ -169,3 +169,13 @@ export function SignalIcons({ className = 'h-3 w-12' }: IconProps) {
     </svg>
   );
 }
+
+export function LifebuoyIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <circle cx="12" cy="12" r="9.5" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="m5.3 5.3 3.9 3.9M14.8 14.8l3.9 3.9M18.7 5.3l-3.9 3.9M9.2 14.8l-3.9 3.9" />
+    </Icon>
+  );
+}

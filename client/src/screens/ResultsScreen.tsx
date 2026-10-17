@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { FLAG_LABELS, mostMissedFlags } from '../../../shared/flags.ts';
 import { button, CARD, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
-import { FishIcon, FlagIcon, ShieldCheckIcon } from '../components/icons.tsx';
+import { FishIcon, FlagIcon, LifebuoyIcon, ShieldCheckIcon } from '../components/icons.tsx';
 import { isCorrect, type Answer } from '../game/types.ts';
 
 type Props = {
@@ -19,6 +19,14 @@ function titleFor(score: number, total: number): string {
   if (ratio >= 0.4) return 'Getting there.';
   return 'The phish got away this time.';
 }
+
+// Calm, practical steps for after a real phish; shown on every results screen.
+const HOOKED_STEPS: [string, string][] = [
+  ['Tell a trusted adult or your school’s IT team right away.', 'They’ve seen this before and can help.'],
+  ['Change that password', 'by going to the real site or app yourself, not through the message.'],
+  ['Turn on two-step verification', 'so a password alone isn’t enough to get in.'],
+  ['Used that password anywhere else?', 'Change it there too.'],
+];
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -104,6 +112,28 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
           <span className="text-3xl font-black text-slate-900">{falseAlarms}</span> of {legit.length} legit{' '}
           {plural(legit.length, 'message', 'messages')} marked Phish.
         </p>
+      </section>
+
+      <section aria-labelledby="hooked-help-heading" className="rounded-2xl bg-sky-100/70 p-5 ring-1 ring-sky-200 sm:p-6">
+        <h3 id="hooked-help-heading" className="flex items-center gap-2 text-lg font-bold text-slate-900">
+          <span className="grid size-8 place-items-center rounded-lg bg-white text-sky-800">
+            <LifebuoyIcon className="size-5" />
+          </span>
+          If you ever do get hooked
+        </h3>
+        <p className="mt-2 text-sm text-slate-700">It happens to careful people too. Acting quickly keeps it small.</p>
+        <ol className="mt-4 flex flex-col gap-3">
+          {HOOKED_STEPS.map(([lead, rest], i) => (
+            <li key={lead} className="flex gap-3 text-sm leading-relaxed text-slate-700">
+              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-sky-800 text-xs font-bold text-white">
+                {i + 1}
+              </span>
+              <span>
+                <strong className="text-slate-900">{lead}</strong> {rest}
+              </span>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <div className="flex flex-wrap gap-3">
