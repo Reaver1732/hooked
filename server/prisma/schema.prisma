@@ -20,7 +20,12 @@ model Class {
   /// 60-player cap can be enforced atomically in a single statement.
   playerCount    Int      @default(0)
   createdAt      DateTime @default(now())
+  /// Reset by joins, answers, and the teacher opening the dashboard or pressing
+  /// "Keep this class". Classes idle for 7 days are deleted (see cleanup.ts).
+  lastActivityAt DateTime @default(now())
   players        Player[]
+
+  @@index([lastActivityAt])
 }
 
 model Player {

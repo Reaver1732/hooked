@@ -4,11 +4,13 @@ import { z } from 'zod';
 import {
   CLASS_CODE_ALPHABET,
   CLASS_CODE_LENGTH,
+  CLASS_IDLE_DAYS,
   MAX_PLAYERS_PER_CLASS,
   NICKNAME_MAX,
   type ClassSummary,
   type CreateClassResponse,
   type JoinClassResponse,
+  type KeepClassResponse,
   type SubmitAnswerResponse,
 } from '../../shared/api.ts';
 import { mostMissedFlags } from '../../shared/flags.ts';
@@ -84,8 +86,8 @@ async function requireTeacher(req: Request) {
   const key = teacherKeySchema.safeParse(req.get('X-Teacher-Key'));
   if (!key.success) throw new HttpError(401, 'Missing or invalid teacher key');
 
-  const cls = await db().class.findUnique({ where: { code } });
-  if (!cls) throw new HttpError(404, 'Class not found');
+  const cls = await findActiveClass(code);
+  if (!cls) throw new HttpError(404, 'This class was closed or has expired.');
   const given = Buffer.from(hashKey(key.data), 'hex');
   const stored = Buffer.from(cls.teacherKeyHash, 'hex');
   if (given.length !== stored.length || !timingSafeEqual(given, stored)) {
@@ -118,7 +120,7 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
   const code = parse(codeSchema, req.params.code);
   const { nickname } = parse(joinBody, req.body);
 
-  const cls = await db().class.findUnique({ where: { code } });
+  const cls = await findActiveClass(code);
   if (!cls) throw new HttpError(404, 'No class with that code');
 
   const taken = await db().player.findFirst({
@@ -132,7 +134,7 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
   const playerId = randomUUID();
   const inserted = await db().$queryRaw<{ id: string }[]>`
     WITH seat AS (
-      UPDATE "Class" SET "playerCount" = "playerCount" + 1
+      UPDATE "Class" SET "playerCount" = "playerCount" + 1, "lastActivityAt" = now() AT TIME ZONE 'UTC'
       WHERE id = ${cls.id} AND "playerCount" < ${MAX_PLAYERS_PER_CLASS}
       RETURNING id
     )
@@ -155,9 +157,13 @@ async function validateAnswer(req: Request, res: Response, next: NextFunction) {
   const body = parse(answerBody, req.body);
   const message = messagesById.get(body.messageId);
   if (!message) throw new HttpError(400, 'Unknown message');
-  const player = await db().player.findUnique({ where: { id: body.playerId }, select: { id: true } });
+  const player = await db().player.findFirst({
+    where: { id: body.playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
+    select: { id: true, classId: true },
+  });
   if (!player) throw new HttpError(404, 'Player not found. You may have been removed from the class.');
   res.locals.playerId = player.id;
+  res.locals.classId = player.classId;
   res.locals.answer = { ...body, message } satisfies ValidAnswer;
   next();
 }
@@ -167,6 +173,7 @@ classesRouter.post('/answers', validateAnswer, answerLimit, async (_req, res) =>
 
   // Graded here from shared data; the client never tells us what's correct.
   const correct = (choice === 'phish') === message.isPhish;
+  await touchClass(res.locals.classId as string, { throttleMs: 60_000 });
   try {
     await db().answer.create({ data: { playerId, messageId, choice, correct } });
     res.status(201).json({ correct, alreadyAnswered: false } satisfies SubmitAnswerResponse);
@@ -197,6 +204,7 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
 
   const summary: ClassSummary = {
     code: cls.code,
+    expiresAt: expiresAt(cls.lastActivityAt),
     playerCount: players.length,
     totalMessages: messages.length,
     averageCorrect: active.length
@@ -238,6 +246,55 @@ classesRouter.delete('/classes/:code/players/:playerId', async (req, res) => {
   if (removed.length === 0) throw new HttpError(404, 'Player not found in this class');
   res.status(204).end();
 });
+
+/** Public: lets a student's app tell "class closed" apart from "you were removed". */
+classesRouter.get('/classes/:code/status', joinClassLimit, async (req, res) => {
+  const code = parse(codeSchema, req.params.code);
+  if (!(await findActiveClass(code))) throw new HttpError(404, 'This class was closed.');
+  res.set('Cache-Control', 'no-store').json({ open: true });
+});
+
+/** Teacher: dashboard opened (first load only) or "Keep this class" pressed. */
+classesRouter.post('/classes/:code/keep', async (req, res) => {
+  const cls = await requireTeacher(req);
+  const updated = await touchClass(cls.id);
+  res.json({ expiresAt: expiresAt(updated ?? cls.lastActivityAt) } satisfies KeepClassResponse);
+});
+
+/** Teacher: delete the class; players and answers cascade. */
+classesRouter.delete('/classes/:code', async (req, res) => {
+  const cls = await requireTeacher(req);
+  await db().class.deleteMany({ where: { id: cls.id } });
+  res.status(204).end();
+});
+
+// ---- Expiry -----------------------------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Classes last active before this are expired (and deleted by the next cleanup run). */
+export const idleCutoff = () => new Date(Date.now() - CLASS_IDLE_DAYS * DAY_MS);
+
+const expiresAt = (lastActivityAt: Date) => new Date(lastActivityAt.getTime() + CLASS_IDLE_DAYS * DAY_MS).toISOString();
+
+/** A class by code, unless it has expired; cleanup runs hourly, so check here too. */
+function findActiveClass(code: string) {
+  return db().class.findFirst({ where: { code, lastActivityAt: { gte: idleCutoff() } } });
+}
+
+/**
+ * Marks a class active now. With throttleMs, skips the write if it was marked within
+ * that window (answers arrive in bursts; one write a minute is plenty). Returns the new
+ * time, or null if skipped.
+ */
+async function touchClass(classId: string, { throttleMs = 0 } = {}): Promise<Date | null> {
+  const now = new Date();
+  const { count } = await db().class.updateMany({
+    where: { id: classId, ...(throttleMs && { lastActivityAt: { lt: new Date(now.getTime() - throttleMs) } }) },
+    data: { lastActivityAt: now },
+  });
+  return count ? now : null;
+}
 
 function messageLabel(m: Message): string {
   if (m.kind === 'email' && m.subject) return m.subject;

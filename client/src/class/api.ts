@@ -3,6 +3,7 @@ import type {
   ClassSummary,
   CreateClassResponse,
   JoinClassResponse,
+  KeepClassResponse,
   SubmitAnswerRequest,
   SubmitAnswerResponse,
 } from '../../../shared/api.ts';
@@ -57,4 +58,17 @@ export const api = {
       method: 'DELETE',
       headers: teacherHeaders(teacherKey),
     }),
+
+  /** Resets the inactivity timer. Called on the dashboard's first load and by "Keep this class". */
+  keepClass: (code: string, teacherKey: string) =>
+    request<KeepClassResponse>(`/classes/${encodeURIComponent(code)}/keep`, {
+      method: 'POST',
+      headers: teacherHeaders(teacherKey),
+    }),
+
+  deleteClass: (code: string, teacherKey: string) =>
+    request<void>(`/classes/${encodeURIComponent(code)}`, { method: 'DELETE', headers: teacherHeaders(teacherKey) }),
+
+  /** Resolves if the class is still open; rejects with status 404 once it's closed or expired. */
+  classStatus: (code: string) => request<{ open: true }>(`/classes/${encodeURIComponent(code)}/status`),
 };

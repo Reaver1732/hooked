@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { apiErrorHandler, classesRouter } from './classes.ts';
+import { startClassCleanup } from './cleanup.ts';
 import { loadLocalEnv } from './env.ts';
 
 loadLocalEnv();
@@ -44,6 +45,7 @@ if (clientDist) {
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
+  startClassCleanup();
 });
 
 function findUp(start: string, relative: string): string | null {
