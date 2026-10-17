@@ -2,7 +2,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-sky-50 text-slate-900 antialiased;
   }
 
   /* Safety net for anything animated without a motion-safe: variant. */
@@ -12,8 +12,24 @@
     ::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+      transition-duration: 0s !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+@layer components {
+  /* The hook on the start screen bobs on its line (only when motion is welcome). */
+  @keyframes bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(6px);
+    }
+  }
+  .animate-bob {
+    animation: bob 3.5s ease-in-out infinite;
   }
 }

@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { CLASS_CODE_LENGTH, NICKNAME_MAX } from '../../../shared/api.ts';
 import { api, ApiRequestError } from '../class/api.ts';
-import { BACK_LINK, PRIMARY_BUTTON, TEXT_INPUT } from '../components/buttonStyles.ts';
+import { button, CARD, INPUT_FRAME, TEXT_INPUT } from '../components/buttonStyles.ts';
+import { UsersIcon } from '../components/icons.tsx';
+import { ScreenHeader } from '../components/ScreenHeader.tsx';
 
 export type ClassSession = { code: string; nickname: string; playerId: string };
 
@@ -30,6 +32,7 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
 
   async function join(e: FormEvent) {
     e.preventDefault();
+    if (busy) return; // not `disabled` while busy: that would drop keyboard focus
     setError(null);
     setBusy(true);
     try {
@@ -43,21 +46,13 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
 
   return (
     <section aria-labelledby="join-heading" className="flex flex-col gap-6">
-      <button type="button" onClick={onBack} className={BACK_LINK}>
-        ← Back
-      </button>
-      <div>
-        <h2 id="join-heading" ref={headingRef} tabIndex={-1} className="text-3xl font-bold tracking-tight outline-none">
-          Join a class
-        </h2>
-        <p className="mt-2 text-slate-600">
-          Enter the code your teacher shows you. Only your nickname and your answers are sent to your teacher.
-        </p>
-      </div>
+      <ScreenHeader id="join-heading" headingRef={headingRef} icon={<UsersIcon className="size-6" />} title="Join a class" onBack={onBack}>
+        Enter the code your teacher shows you. Only your nickname and your answers are sent to your teacher.
+      </ScreenHeader>
 
-      <form onSubmit={join} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+      <form onSubmit={join} className={`${CARD} flex flex-col gap-5 p-5 sm:p-6`}>
         <div>
-          <label htmlFor={codeId} className="text-sm font-medium">
+          <label htmlFor={codeId} className="text-sm font-semibold">
             Class code
           </label>
           <input
@@ -70,14 +65,14 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
             autoCapitalize="characters"
             spellCheck={false}
             aria-describedby={error ? errorId : undefined}
-            className={`${TEXT_INPUT} mt-1.5 font-mono text-2xl tracking-[0.3em] uppercase`}
+            className={`${INPUT_FRAME} mt-1.5 min-h-16 text-center font-mono text-3xl font-bold tracking-[0.3em] text-sky-950 uppercase`}
           />
         </div>
         <div>
-          <label htmlFor={nicknameId} className="text-sm font-medium">
+          <label htmlFor={nicknameId} className="text-sm font-semibold">
             Nickname
           </label>
-          <p className="text-xs text-slate-500">Not your full name. Up to {NICKNAME_MAX} characters.</p>
+          <p className="text-xs text-slate-700">Not your full name. Up to {NICKNAME_MAX} characters.</p>
           <input
             ref={nicknameRef}
             id={nicknameId}
@@ -91,17 +86,18 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
             className={`${TEXT_INPUT} mt-1.5`}
           />
         </div>
-        <div aria-live="polite">
+        <div aria-live="polite" className="-mt-5">
           {error && (
-            <p id={errorId} className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200">
+            <p id={errorId} className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200">
               {error}
             </p>
           )}
         </div>
         <button
           type="submit"
-          disabled={busy || code.length !== CLASS_CODE_LENGTH || !nickname.trim()}
-          className={`${PRIMARY_BUTTON} self-start`}
+          disabled={code.length !== CLASS_CODE_LENGTH || !nickname.trim()}
+          aria-busy={busy}
+          className={`${button('primary', 'lg')} w-full sm:w-auto sm:self-start`}
         >
           {busy ? 'Joining…' : 'Join'}
         </button>

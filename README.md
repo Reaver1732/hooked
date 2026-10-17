@@ -43,6 +43,11 @@ Limits, designed so a classroom or venue sharing one IP is never blocked (rate l
 
 Rate-limit hits are logged by limit name only; no IPs or player ids are logged.
 
+Class lifecycle:
+
+- Teachers can delete a class from the dashboard (players and answers go with it). Students still in it see "This class was closed" and can keep playing solo.
+- Classes are deleted after 7 days without activity. Activity is a student joining, an answer, the teacher opening the dashboard (first load only, not the 5-second refresh), or "Keep this class". The dashboard shows the deletion date and warns when it's under 24 hours away. Cleanup runs when the server starts and every hour; an expired class is treated as gone even before cleanup removes it.
+
 ### Railway
 
 The `hooked` service is configured in the Railway dashboard (no config file):

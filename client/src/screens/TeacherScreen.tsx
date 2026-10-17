@@ -3,7 +3,10 @@ import { api, ApiRequestError } from '../class/api.ts';
 import { dashboardHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
 import { joinUrl } from '../class/joinLink.ts';
 import { JoinQrCode } from '../components/JoinQrCode.tsx';
-import { BACK_LINK, FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
+import { CLASS_IDLE_DAYS } from '../../../shared/api.ts';
+import { BACK_LINK, button, CARD, FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
+import { ChalkboardIcon, ChevronLeftIcon } from '../components/icons.tsx';
+import { ScreenHeader } from '../components/ScreenHeader.tsx';
 
 type Props = { onBack: () => void; onOpenDashboard: (credentials: TeacherCredentials) => void };
 
@@ -17,6 +20,7 @@ export function TeacherScreen({ onBack, onOpenDashboard }: Props) {
   useEffect(() => headingRef.current?.focus({ preventScroll: true }), [created]);
 
   async function createClass() {
+    if (busy) return; // not `disabled` while busy: that would drop keyboard focus
     setError(null);
     setBusy(true);
     try {
@@ -40,22 +44,34 @@ export function TeacherScreen({ onBack, onOpenDashboard }: Props) {
   if (!created) {
     return (
       <section aria-labelledby="teacher-heading" className="flex flex-col gap-6">
-        <button type="button" onClick={onBack} className={BACK_LINK}>
-          ← Back
-        </button>
-        <div>
-          <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="text-3xl font-bold tracking-tight outline-none">
-            Run a class
-          </h2>
-          <p className="mt-2 text-slate-600">
-            Create a class to get a code for students to join, plus a private dashboard showing how the class is doing.
-            Students only share a nickname and their answers.
-          </p>
-        </div>
+        <ScreenHeader id="teacher-heading" headingRef={headingRef} icon={<ChalkboardIcon className="size-6" />} title="Run a class" onBack={onBack}>
+          Get a code your students can join, and a private dashboard that shows how the class is doing.
+        </ScreenHeader>
+
+        <ol className={`${CARD} flex flex-col gap-4 p-5 sm:p-6`}>
+          {[
+            ['Share the code', 'Project the QR code and class code. Students join with just a nickname.'],
+            ['Students play', 'Everyone sorts the same messages into phish or legit at their own pace.'],
+            ['Watch the dashboard', 'See scores, the red flags your class misses most, and how each message went.'],
+          ].map(([title, text], i) => (
+            <li key={title} className="flex gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sky-100 font-bold text-sky-900">{i + 1}</span>
+              <span>
+                <span className="block font-bold">{title}</span>
+                <span className="text-sm text-slate-700">{text}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="text-sm text-slate-700">
+          Students share only a nickname and their answers. Classes are deleted after {CLASS_IDLE_DAYS} days without
+          activity.
+        </p>
+
         <div aria-live="polite">
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200">{error}</p>}
         </div>
-        <button type="button" onClick={createClass} disabled={busy} className={`${PRIMARY_BUTTON} self-start`}>
+        <button type="button" onClick={createClass} aria-busy={busy} className={`${button('primary', 'lg')} self-start`}>
           {busy ? 'Creating…' : 'Create a class'}
         </button>
       </section>
@@ -65,22 +81,31 @@ export function TeacherScreen({ onBack, onOpenDashboard }: Props) {
   return (
     <section aria-labelledby="teacher-heading" className="flex flex-col gap-6">
       <button type="button" onClick={onBack} className={BACK_LINK}>
-        ← Back
+        <ChevronLeftIcon className="size-4" />
+        Back
       </button>
-      <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center">
-        <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="text-lg font-medium text-slate-600 outline-none">
+      <div className={`${CARD} px-5 py-7 sm:px-8`}>
+        <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="text-center text-2xl font-black tracking-tight outline-none sm:text-3xl">
           Scan to join, or enter the class code
         </h2>
-        <JoinQrCode url={joinUrl(created.code)} />
-        <p className="font-mono text-6xl font-bold tracking-[0.15em] wrap-anywhere sm:text-8xl">
-          <span className="sr-only">Class code: {created.code.split('').join(' ')}</span>
-          <span aria-hidden>{created.code}</span>
+        <div className="mt-6 grid items-center gap-6 sm:grid-cols-[1fr_1fr]">
+          <JoinQrCode url={joinUrl(created.code)} />
+          <div className="text-center">
+            <p className="text-sm font-semibold tracking-wide text-slate-700 uppercase">Class code</p>
+            <p className="font-mono text-5xl font-black tracking-[0.08em] whitespace-nowrap text-sky-900 min-[400px]:text-6xl">
+              <span className="sr-only">{created.code.split('').join(' ')}</span>
+              <span aria-hidden>{created.code}</span>
+            </p>
+          </div>
+        </div>
+        <p className="mt-6 text-center text-sm font-semibold tracking-wide text-slate-700 uppercase">Or go to</p>
+        <p className="text-center font-mono text-lg font-semibold break-all text-slate-900 sm:text-xl">
+          {joinUrl(created.code).replace(/^https?:\/\//, '')}
         </p>
-        <p className="font-mono text-base break-all text-slate-700 sm:text-lg">{joinUrl(created.code)}</p>
       </div>
 
-      <section aria-labelledby="dashboard-link-heading" className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
-        <h3 id="dashboard-link-heading" className="text-lg font-semibold text-amber-950">
+      <section aria-labelledby="dashboard-link-heading" className="rounded-2xl border border-amber-300 bg-amber-50 p-5 sm:p-6">
+        <h3 id="dashboard-link-heading" className="text-lg font-bold text-amber-950">
           Your dashboard link
         </h3>
         <p className="mt-1 text-sm text-amber-900">

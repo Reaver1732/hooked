@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
+import { button, CARD, FOCUS_RING, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
+import { CheckCircleIcon, LockIcon, XCircleIcon } from '../components/icons.tsx';
+import { ScreenHeader } from '../components/ScreenHeader.tsx';
 import { generatePassphrase, loadWordlist } from '../password/passphrase.ts';
 import { lookupHash, PREFIX_LENGTH, sha1Hex } from '../password/pwned.ts';
 
@@ -52,7 +54,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
 
   async function runCheck(e: FormEvent) {
     e.preventDefault();
-    if (!password) return;
+    if (!password || check.status === 'checking') return;
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
@@ -72,26 +74,17 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <section aria-labelledby="password-heading" className="flex flex-col gap-6">
-      <button type="button" onClick={onBack} className={`self-start rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 ${FOCUS_RING}`}>
-        ← Back
-      </button>
+      <ScreenHeader id="password-heading" headingRef={headingRef} icon={<LockIcon className="size-6" />} title="Has this password leaked?" onBack={onBack}>
+        Checks a password against passwords exposed in real data breaches, without sending the password anywhere.
+      </ScreenHeader>
 
-      <div>
-        <h2 id="password-heading" ref={headingRef} tabIndex={-1} className="text-3xl font-bold tracking-tight outline-none">
-          Has this password leaked?
-        </h2>
-        <p className="mt-2 text-slate-600">
-          Checks a password against passwords exposed in real data breaches, without sending the password anywhere.
-        </p>
-      </div>
-
-      <form onSubmit={runCheck} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-        <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900 ring-1 ring-amber-200">
+      <form onSubmit={runCheck} className={`${CARD} flex flex-col gap-5 p-5 sm:p-6`}>
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
           Don’t type your real password here, or into any site you don’t fully trust. Try one that’s like yours instead.
         </p>
 
         <div>
-          <label htmlFor={inputId} className="text-sm font-medium">
+          <label htmlFor={inputId} className="text-sm font-semibold">
             Password to check
           </label>
           <div className="mt-1.5 flex gap-2">
@@ -117,7 +110,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
               onClick={() => setVisible((v) => !v)}
               aria-controls={inputId}
               aria-label={visible ? 'Hide password' : 'Show password'}
-              className={`min-h-12 shrink-0 rounded-lg border border-slate-300 px-3 text-sm font-medium hover:bg-slate-100 ${FOCUS_RING}`}
+              className={`min-h-12 shrink-0 rounded-lg border border-slate-400 px-4 text-sm font-semibold text-sky-900 hover:bg-sky-50 ${FOCUS_RING}`}
             >
               {visible ? 'Hide' : 'Show'}
             </button>
@@ -125,7 +118,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-slate-600">Try an example:</span>
+          <span className="text-slate-700">Try an example:</span>
           {EXAMPLES.map((example) => (
             <button
               key={example}
@@ -134,14 +127,15 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
                 changePassword(example);
                 inputRef.current?.focus();
               }}
-              className={`rounded-full border border-slate-300 px-3 py-1 font-mono hover:bg-slate-100 ${FOCUS_RING}`}
+              className={`rounded-full border border-sky-800/25 bg-sky-50 px-3 py-1 font-mono text-sky-950 hover:bg-sky-100 ${FOCUS_RING}`}
             >
               {example}
             </button>
           ))}
         </div>
 
-        <button type="submit" disabled={!password || check.status === 'checking'} className={`${PRIMARY_BUTTON} self-start`}>
+        <button type="submit" disabled={!password}
+          aria-busy={check.status === 'checking'} className={`${button('primary', 'lg')} self-start`}>
           {check.status === 'checking' ? 'Checking…' : 'Check'}
         </button>
       </form>
@@ -149,17 +143,24 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
       <div aria-live="polite" aria-atomic="true">
         {check.status === 'done' &&
           (check.breachCount > 0 ? (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-red-900 ring-1 ring-red-200">
-              <strong>Seen in data breaches {check.breachCount.toLocaleString()} times.</strong> Attackers try these
-              first. Don’t use it.
+            <p className="flex items-start gap-3 rounded-2xl bg-red-50 px-4 py-3 text-red-900 ring-1 ring-red-200">
+              <XCircleIcon className="mt-0.5 size-6 shrink-0" />
+              <span>
+                <strong className="block text-lg">Seen in data breaches {check.breachCount.toLocaleString()} times.</strong>
+                Attackers try these first. Don’t use it.
+              </span>
             </p>
           ) : (
-            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-emerald-900 ring-1 ring-emerald-200">
-              <strong>Not found in known breaches.</strong> That doesn’t mean it’s strong.
+            <p className="flex items-start gap-3 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-900 ring-1 ring-emerald-200">
+              <CheckCircleIcon className="mt-0.5 size-6 shrink-0" />
+              <span>
+                <strong className="block text-lg">Not found in known breaches.</strong>
+                That doesn’t mean it’s strong.
+              </span>
             </p>
           ))}
         {check.status === 'error' && (
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-200">
+          <p className="rounded-2xl bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-200">
             <strong>Couldn’t reach the breach database.</strong> Check your connection and try again in a moment.
           </p>
         )}
@@ -168,13 +169,15 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
       {check.status !== 'idle' && <LeftDevicePanel check={check} />}
 
       {check.status === 'done' && (
-        <section aria-labelledby="passphrase-heading" className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-          <h3 id="passphrase-heading" className="text-lg font-semibold">
+        <section aria-labelledby="passphrase-heading" className={`${CARD} p-5 sm:p-6`}>
+          <h3 id="passphrase-heading" className="text-lg font-bold">
             Try a passphrase instead
           </h3>
-          <p className="mt-1 text-sm text-slate-600">Four random words are easier to remember and harder to guess.</p>
+          <p className="mt-1 text-sm text-slate-700">Four random words are easier to remember and harder to guess.</p>
           {passphrase ? (
-            <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2.5 font-mono text-lg wrap-break-word">{passphrase.join(' ')}</p>
+            <p className="mt-3 rounded-xl bg-sky-50 px-4 py-3 font-mono text-xl font-semibold text-sky-950 wrap-break-word ring-1 ring-sky-200">
+              {passphrase.join(' ')}
+            </p>
           ) : (
             <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900 ring-1 ring-amber-200">
               Couldn’t load the word list. Check your connection and try again.
@@ -194,21 +197,21 @@ function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> 
   const prefix = check.hash.slice(0, PREFIX_LENGTH);
   const rest = check.hash.slice(PREFIX_LENGTH);
   return (
-    <section aria-labelledby="left-device-heading" className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h3 id="left-device-heading" className="text-lg font-semibold">
+    <section aria-labelledby="left-device-heading" className={`${CARD} p-5 sm:p-6`}>
+      <h3 id="left-device-heading" className="text-lg font-bold">
         What left this device
       </h3>
-      <p className="mt-2 text-sm text-slate-600">Sent to Have I Been Pwned:</p>
+      <p className="mt-2 text-sm text-slate-700">Sent to Have I Been Pwned:</p>
       <p className="mt-1 font-mono text-2xl font-bold tracking-wider">{prefix}</p>
 
-      <p className="mt-4 text-sm text-slate-600">The password’s full SHA-1 hash:</p>
+      <p className="mt-4 text-sm text-slate-700">The password’s full SHA-1 hash:</p>
       <p className="mt-1 font-mono text-sm break-all">
         <mark className="rounded bg-amber-200 px-0.5 text-inherit">{prefix}</mark>
         <span className="sr-only"> (sent) </span>
         <span className="text-slate-500">{rest}</span>
         <span className="sr-only"> (stayed on your device)</span>
       </p>
-      <div aria-hidden className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+      <div aria-hidden className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-700">
         <span className="flex items-center gap-1.5">
           <span className="inline-block size-3 rounded-sm bg-amber-200" /> sent
         </span>
@@ -217,7 +220,7 @@ function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> 
         </span>
       </div>
 
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-4 text-sm text-slate-700">
         {check.status === 'done'
           ? `The service sent back ${check.candidates.toLocaleString()} hashes that start with ${prefix}. This device compared them to the rest of the hash; the password itself never left.`
           : check.status === 'checking'

@@ -4,6 +4,7 @@ import { api, ApiRequestError } from './class/api.ts';
 import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
 import { takeJoinParam } from './class/joinLink.ts';
 import type { Answer } from './game/types.ts';
+import { Logo } from './components/Logo.tsx';
 import { DashboardScreen } from './screens/DashboardScreen.tsx';
 import { JoinScreen, type ClassSession } from './screens/JoinScreen.tsx';
 import { PasswordScreen } from './screens/PasswordScreen.tsx';
@@ -52,6 +53,7 @@ export default function App() {
   const [round, setRound] = useState(0);
   const [session, setSession] = useState<ClassSession | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const isFirstScreen = useRef(true);
 
@@ -78,9 +80,42 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const play = () => {
+  // The class went away (teacher deleted it, or it expired): drop back to solo play.
+  const closeSession = useCallback(() => {
+    setSession(null);
+    setSyncError(null);
+    setNotice('This class was closed. You can keep playing on your own.');
+  }, []);
+
+  /** After a 404 for this player: tell "class closed" apart from "you were removed". */
+  const explainMissingPlayer = useCallback(
+    async (code: string, removedMessage: string) => {
+      try {
+        await api.classStatus(code);
+        setSyncError(removedMessage);
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 404) closeSession();
+        else setSyncError(removedMessage);
+      }
+    },
+    [closeSession],
+  );
+
+  const play = async () => {
+    if (session) {
+      try {
+        await api.classStatus(session.code);
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 404) {
+          closeSession();
+          return;
+        }
+        // Offline or a server hiccup: play anyway; answers retry and report problems.
+      }
+    }
     setRound((r) => r + 1);
     setSyncError(null);
+    setNotice(null);
     setScreen({ name: 'play', deck: messages });
   };
   const openPasswordCheck = (back: GameScreen) => setScreen({ name: 'password', back });
@@ -99,7 +134,11 @@ export default function App() {
           await api.submitAnswer(body);
           return;
         } catch (err) {
-          // 4xx won't get better on retry (e.g. the teacher removed this player).
+          if (err instanceof ApiRequestError && err.status === 404) {
+            await explainMissingPlayer(session.code, err.message);
+            return;
+          }
+          // Other 4xx won't get better on retry.
           if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
             setSyncError(err.message);
             return;
@@ -109,35 +148,41 @@ export default function App() {
       }
       setSyncError('Couldn’t send an answer to your class. Check your connection.');
     },
-    [session],
+    [session, explainMissingPlayer],
   );
 
-  const showHeader = screen.name !== 'start';
+  const inGame = screen.name === 'start' || screen.name === 'play' || screen.name === 'results';
+  const message = syncError ?? notice;
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10">
-      {showHeader && (
-        <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-lg font-bold tracking-tight">Hooked</h1>
+    <div className="mx-auto w-full max-w-2xl px-4 py-5 sm:py-8">
+      {screen.name !== 'start' && (
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h1>
+            <Logo />
+          </h1>
           {session && (screen.name === 'play' || screen.name === 'results') && (
-            <p className="text-sm text-slate-600">
-              Class <span className="font-mono font-semibold">{session.code}</span> · {session.nickname}
+            <p className="rounded-full bg-white px-3 py-1 text-sm text-slate-700 ring-1 ring-slate-200">
+              Class <span className="font-mono font-semibold text-slate-900">{session.code}</span> · {session.nickname}
             </p>
           )}
         </header>
       )}
-      {syncError && (screen.name === 'play' || screen.name === 'results') && (
-        <p role="status" className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
-          {syncError}
-        </p>
-      )}
+      <div role="status">
+        {message && inGame && (
+          <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">{message}</p>
+        )}
+      </div>
       <main ref={mainRef}>
         {screen.name === 'start' && (
           <StartScreen
             session={session}
             onStart={play}
             onJoinClass={() => setScreen({ name: 'join' })}
-            onLeaveClass={() => setSession(null)}
+            onLeaveClass={() => {
+              setSession(null);
+              setNotice(null);
+            }}
             onTeacher={() => setScreen({ name: 'teacher' })}
             onPasswordCheck={() => openPasswordCheck(screen)}
           />
@@ -165,6 +210,7 @@ export default function App() {
             onBack={() => setScreen({ name: 'start' })}
             onJoined={(joined) => {
               setSession(joined);
+              setNotice(null);
               setScreen({ name: 'start' });
             }}
           />
