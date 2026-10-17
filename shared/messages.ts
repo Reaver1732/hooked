@@ -82,4 +82,82 @@ export const messages: Message[] = [
       },
     ],
   },
+  {
+    id: "package-fee-phish",
+    kind: "text",
+    context: "Your family orders stuff online all the time.",
+    from: { name: "Unknown", address: "(414) 555-0182" },
+    body:
+      "SwiftParcel: Your package is on hold due to an unpaid $1.99 delivery fee. " +
+      "Pay within 24 hours or it will be returned: {{0}}",
+    links: [
+      {
+        text: "swiftparcel-redelivery.com/pay",
+        realUrl: "https://swiftparcel-redelivery.com/pay",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "$1.99 delivery fee",
+        type: "asks-for-credentials",
+        note: "A tiny fee feels harmless. The real goal is getting your card number.",
+      },
+      {
+        match: "Pay within 24 hours or it will be returned",
+        type: "urgency",
+        note: "A short deadline so you pay before you ask a parent whether anything is even coming.",
+      },
+      {
+        match: "swiftparcel-redelivery.com/pay",
+        type: "lookalike-sender",
+        note: "Delivery companies use their own short website. Extra words like \"-redelivery\" mean it's someone else's site.",
+      },
+    ],
+  },
+  {
+    id: "game-login-phish",
+    kind: "email",
+    context: "You play Glimmerforge on your laptop at home.",
+    from: {
+      name: "Glimmerforge Security",
+      address: "security@glimmerforge-support.net",
+    },
+    subject: "New sign-in to your account",
+    body:
+      "Hello Player,\n\n" +
+      "We noticed a sign-in to your Glimmerforge account from a new device.\n\n" +
+      "Device: Windows PC\nLocation: Unrecognized\n\n" +
+      "If this wasn't you, secure your account now or it will be locked: {{0}}\n\n" +
+      "The Glimmerforge Team",
+    links: [
+      {
+        text: "Secure my account",
+        realUrl: "https://glimmerforge-support.net/verify",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "security@glimmerforge-support.net",
+        type: "lookalike-sender",
+        note: 'Glimmerforge\'s real emails come from @glimmerforge.com. Adding "-support" makes it a completely different website.',
+      },
+      {
+        match: "Hello Player",
+        type: "generic-greeting",
+        note: "Your real game account knows your username.",
+      },
+      {
+        match: "or it will be locked",
+        type: "urgency",
+        note: "Fear of losing your account is the hook. Scammers want you to act fast.",
+      },
+      {
+        match: "Secure my account",
+        type: "asks-for-credentials",
+        note: "This button leads to a fake sign-in page. If you're worried, open the game yourself and change your password there.",
+      },
+    ],
+  },
 ];
