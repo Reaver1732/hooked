@@ -1,33 +1,29 @@
-const WORDS = `
-acorn alpine amber anchor angle apple apron arcade arrow atlas
-attic autumn badge bagel baker bamboo banjo barley basil basket
-beach beacon beaver berry bicycle biscuit bison blanket blossom bonfire
-bottle bramble branch breeze brick bridge brook broom bucket buffalo
-bugle butter button cabin cactus camel candle canoe canyon carpet
-carrot castle cedar cello chalk cherry chimney cider cinema circus
-cliff clock cloud clover cobalt coconut comet compass copper coral
-cotton cradle crane crayon cricket crystal cupcake daisy dolphin donkey
-dragon drum eagle easel echo elbow ember engine falcon feather
-fern ferry fiddle field fig flannel flute forest fossil fountain
-fox galaxy garden garlic gazelle geyser ginger glacier globe goblet
-goose granite grape gravel guitar hammock harbor harvest hazel hedge
-helmet heron hickory honey horizon husky igloo island ivory jacket
-jasmine jelly jigsaw journal jungle kayak kettle kitten koala ladder
-lagoon lantern lemon lettuce lighthouse lily linen lizard lobster locket
-lotus magnet mango maple marble meadow melon meteor mitten moose
-mosaic muffin nectar needle nutmeg oasis oatmeal ocean olive onion
-orbit orchid otter owl paddle panda papaya parrot peach peanut
-pebble pelican pepper piano pickle pigeon pillow pine planet plum
-pocket pony popcorn potato prairie pretzel puffin pumpkin puzzle quartz
-quill rabbit raccoon radish rainbow raven reef ribbon river robin
-rocket saddle salmon sandal satchel scarf seashell shadow sparrow spinach
-sprout squash squirrel stamp starfish stone sunflower swan teapot thimble
-thistle thunder tiger timber toast tomato topaz tractor trumpet tulip
-tundra turnip turtle umbrella valley velvet violin volcano waffle walnut
-walrus wagon whistle willow window winter wizard yogurt zebra zephyr
-`
-  .trim()
-  .split(/\s+/);
+// EFF Long Wordlist (7,776 words, CC BY 3.0): https://www.eff.org/dice
+// Each line is "<five dice digits>\t<word>". The file is ~100 KB, so it isn't bundled:
+// Vite emits it as a separate asset and we fetch it only when the password screen opens.
+// (A plain fetch, not a dynamic import, because browsers cache a failed import forever.)
+import wordlistUrl from './eff_large_wordlist.txt?url';
+
+let wordlist: Promise<string[]> | null = null;
+
+export function loadWordlist(): Promise<string[]> {
+  wordlist ??= fetch(wordlistUrl)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Wordlist request failed with HTTP ${res.status}`);
+      return res.text();
+    })
+    .then((text) =>
+      text
+        .split('\n')
+        .map((line) => line.split('\t')[1]?.trim())
+        .filter((word): word is string => !!word),
+    )
+    .catch((err: unknown) => {
+      wordlist = null; // let the next call retry, e.g. after a dropped connection
+      throw err;
+    });
+  return wordlist;
+}
 
 /** Uniform random integer in [0, n), using rejection sampling to avoid modulo bias. */
 function randomIndex(n: number): number {
@@ -38,6 +34,7 @@ function randomIndex(n: number): number {
   return buf[0] % n;
 }
 
-export function generatePassphrase(wordCount = 4): string[] {
-  return Array.from({ length: wordCount }, () => WORDS[randomIndex(WORDS.length)]);
+/** Four words from 7,776 is about 51.7 bits of entropy. */
+export function generatePassphrase(words: string[], wordCount = 4): string[] {
+  return Array.from({ length: wordCount }, () => words[randomIndex(words.length)]);
 }

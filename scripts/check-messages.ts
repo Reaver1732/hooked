@@ -1,5 +1,6 @@
 // Verifies every message's link tokens and highlights. Exits non-zero on any problem:
 // - each {{n}} in a body must point at an existing link, and every link must be referenced
+// - only emails may have a subject (texts and DMs never show one)
 // - each highlight.match must appear exactly once in from / subject / rendered body
 import { messages, type Message } from '../client/src/data/messages.ts';
 import { parseBody, renderBodyText } from '../client/src/data/linkTokens.ts';
@@ -11,15 +12,22 @@ function countOccurrences(haystack: string, needle: string): number {
 }
 
 function searchableFields(m: Message): string[] {
-  return [m.from.name, m.from.address, m.subject ?? '', renderBodyText(m)];
+  const subject = m.kind === 'email' ? (m.subject ?? '') : '';
+  return [m.from.name, m.from.address, subject, renderBodyText(m)];
 }
 
 const errors: string[] = [];
 const seenIds = new Set<string>();
+const KINDS: Message['kind'][] = ['email', 'text', 'dm'];
 
 for (const m of messages) {
   if (seenIds.has(m.id)) errors.push(`[${m.id}] duplicate message id`);
   seenIds.add(m.id);
+
+  if (!KINDS.includes(m.kind)) errors.push(`[${m.id}] unknown kind "${m.kind}" (expected ${KINDS.join(', ')})`);
+  if (m.kind !== 'email' && m.subject !== undefined) {
+    errors.push(`[${m.id}] a ${m.kind} has no subject line; remove "subject"`);
+  }
 
   const referenced = new Set<number>();
   for (const part of parseBody(m.body)) {

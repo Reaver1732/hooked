@@ -8,8 +8,8 @@ export type FlagType =
   | 'unexpected-attachment';
 
 // `match` must be an exact substring of the message, found exactly once across
-// from.name, from.address, subject and the rendered body (link tokens replaced by
-// link text). Run `npm run check:messages`.
+// from.name, from.address, subject (emails only) and the rendered body (link tokens
+// replaced by link text). Run `npm run check:messages`.
 export type Highlight = { match: string; type?: FlagType; note: string };
 
 // Rendered as a <FakeLink>, never a real <a>. Placed inline where the body has
@@ -18,9 +18,12 @@ export type FakeLink = { text: string; realUrl: string };
 
 export type Message = {
   id: string;
-  kind: 'email' | 'text';
+  kind: 'email' | 'text' | 'dm';
+  // email: display name + email address. text: contact name + phone number.
+  // dm: display name + @username.
   from: { name: string; address: string };
-  subject?: string;
+  subject?: string; // emails only; texts and DMs have no subject
+
   body: string;
   links: FakeLink[];
   isPhish: boolean;
@@ -165,6 +168,39 @@ export const messages: Message[] = [
         match: "real quick",
         type: "urgency",
         note: "Rushing you so you send it before you think about why a stranger needs your code.",
+      },
+    ],
+  },
+  {
+    id: "copyright-dm-phish",
+    kind: "dm",
+    from: { name: "Chirp Support", address: "@chirp.support.team" },
+    body: [
+      "Hello, your account has been reported for copyright infringement and will be deleted in 12 hours.",
+      "If you believe this is a mistake, submit an appeal here: {{0}}",
+    ].join("\n\n"),
+    links: [
+      {
+        text: "chirp-appeal-center.com/form",
+        realUrl: "http://chirp-appeal-center.com/form?u=88412",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "@chirp.support.team",
+        type: "lookalike-sender",
+        note: "Anyone can name an account \"support\". Real platform notices arrive in official notifications, not DMs.",
+      },
+      {
+        match: "will be deleted in 12 hours",
+        type: "urgency",
+        note: "A deadline to make you appeal before you stop to check.",
+      },
+      {
+        match: "chirp-appeal-center.com",
+        type: "mismatched-link",
+        note: "Not Chirp's own domain. The appeal form is where they'd ask for your login.",
       },
     ],
   },

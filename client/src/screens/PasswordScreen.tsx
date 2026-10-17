@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
-import { generatePassphrase } from '../password/passphrase.ts';
+import { generatePassphrase, loadWordlist } from '../password/passphrase.ts';
 import { lookupHash, PREFIX_LENGTH, sha1Hex } from '../password/pwned.ts';
 
 const EXAMPLES = ['password123', 'soccer2012', 'iloveyou'];
@@ -24,13 +24,24 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [check, setCheck] = useState<Check>({ status: 'idle' });
-  const [passphrase, setPassphrase] = useState<string[]>([]);
+  // null means the wordlist couldn't be loaded.
+  const [passphrase, setPassphrase] = useState<string[] | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
     headingRef.current?.focus({ preventScroll: true });
+    // Start fetching the wordlist chunk now so it's ready when a check finishes.
+    loadWordlist().catch(() => {});
     return () => requestRef.current?.abort();
   }, []);
+
+  async function newPassphrase() {
+    try {
+      setPassphrase(generatePassphrase(await loadWordlist()));
+    } catch {
+      setPassphrase(null);
+    }
+  }
 
   function changePassword(value: string) {
     // A shown result describes the old value, so drop it (this doesn't run a check).
@@ -51,8 +62,9 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
     setCheck({ status: 'checking', hash });
     try {
       const { breachCount, candidates } = await lookupHash(hash, controller.signal);
+      await newPassphrase();
+      if (controller.signal.aborted) return;
       setCheck({ status: 'done', hash, breachCount, candidates });
-      setPassphrase(generatePassphrase());
     } catch {
       if (!controller.signal.aborted) setCheck({ status: 'error', hash });
     }
@@ -161,9 +173,15 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
             Try a passphrase instead
           </h3>
           <p className="mt-1 text-sm text-slate-600">Four random words are easier to remember and harder to guess.</p>
-          <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2.5 font-mono text-lg break-all">{passphrase.join('-')}</p>
-          <button type="button" onClick={() => setPassphrase(generatePassphrase())} className={`${SECONDARY_BUTTON} mt-3`}>
-            Regenerate
+          {passphrase ? (
+            <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2.5 font-mono text-lg wrap-break-word">{passphrase.join(' ')}</p>
+          ) : (
+            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900 ring-1 ring-amber-200">
+              Couldn’t load the word list. Check your connection and try again.
+            </p>
+          )}
+          <button type="button" onClick={newPassphrase} className={`${SECONDARY_BUTTON} mt-3`}>
+            {passphrase ? 'Regenerate' : 'Try again'}
           </button>
         </section>
       )}

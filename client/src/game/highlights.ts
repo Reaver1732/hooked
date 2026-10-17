@@ -24,7 +24,7 @@ function fieldSegments(message: Message): Record<Field, Segment[]> {
   return {
     fromName: [{ kind: 'text', text: message.from.name }],
     fromAddress: [{ kind: 'text', text: message.from.address }],
-    subject: message.subject ? [{ kind: 'text', text: message.subject }] : [],
+    subject: message.kind === 'email' && message.subject ? [{ kind: 'text', text: message.subject }] : [],
     body: parseBody(message.body).map((p): Segment => {
       if (p.kind === 'text') return { kind: 'text', text: p.text };
       const link = message.links[p.index];
