@@ -11,6 +11,7 @@ import { PasswordScreen } from './screens/PasswordScreen.tsx';
 import { PlayScreen } from './screens/PlayScreen.tsx';
 import { ResultsScreen } from './screens/ResultsScreen.tsx';
 import { StartScreen } from './screens/StartScreen.tsx';
+import { TEACHER_GUIDE_HASH, TeacherGuideScreen } from './screens/TeacherGuideScreen.tsx';
 import { TeacherScreen } from './screens/TeacherScreen.tsx';
 
 type GameScreen =
@@ -23,11 +24,13 @@ type Screen =
   | { name: 'password'; back: GameScreen }
   | { name: 'join'; initialCode?: string }
   | { name: 'teacher' }
-  | { name: 'dashboard'; credentials: TeacherCredentials };
+  | { name: 'dashboard'; credentials: TeacherCredentials }
+  | { name: 'guide'; back: Screen };
 
 function initialScreen(): Screen {
   const credentials = readDashboardHash();
   if (credentials) return { name: 'dashboard', credentials };
+  if (window.location.hash === TEACHER_GUIDE_HASH) return { name: 'guide', back: { name: 'start' } };
 
   // A join link or QR code: <site>/?join=CODE
   const joinCode = takeJoinParam();
@@ -75,6 +78,7 @@ export default function App() {
     const onHashChange = () => {
       const credentials = readDashboardHash();
       if (credentials) setScreen({ name: 'dashboard', credentials });
+      else if (window.location.hash === TEACHER_GUIDE_HASH) setScreen((s) => (s.name === 'guide' ? s : { name: 'guide', back: s }));
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -119,6 +123,7 @@ export default function App() {
     setScreen({ name: 'play', deck: messages });
   };
   const openPasswordCheck = (back: GameScreen) => setScreen({ name: 'password', back });
+  const openGuide = (back: Screen) => setScreen({ name: 'guide', back });
 
   // Report each answer to the class. The server grades it; we only send the choice.
   const reportAnswer = useCallback(
@@ -184,6 +189,7 @@ export default function App() {
               setNotice(null);
             }}
             onTeacher={() => setScreen({ name: 'teacher' })}
+            onTeacherGuide={() => openGuide(screen)}
             onPasswordCheck={() => openPasswordCheck(screen)}
           />
         )}
@@ -218,8 +224,17 @@ export default function App() {
         {screen.name === 'teacher' && (
           <TeacherScreen
             onBack={() => setScreen({ name: 'start' })}
+            onTeacherGuide={() => openGuide(screen)}
             onOpenDashboard={(credentials) => {
               window.location.hash = dashboardHash(credentials);
+            }}
+          />
+        )}
+        {screen.name === 'guide' && (
+          <TeacherGuideScreen
+            onBack={() => {
+              if (window.location.hash === TEACHER_GUIDE_HASH) window.history.replaceState(null, '', window.location.pathname);
+              setScreen(screen.back);
             }}
           />
         )}

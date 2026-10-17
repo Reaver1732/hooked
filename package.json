@@ -14,7 +14,8 @@
     "build": "npm run check:messages && npm run build -w client && npm run build -w server",
     "start": "node server/dist/server/src/index.js",
     "check:messages": "tsx scripts/check-messages.ts",
-    "db:migrate": "npm run db:migrate -w server"
+    "db:migrate": "npm run db:migrate -w server",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

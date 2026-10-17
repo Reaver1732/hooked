@@ -8,9 +8,13 @@ import { BACK_LINK, button, CARD, FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON }
 import { ChalkboardIcon, ChevronLeftIcon } from '../components/icons.tsx';
 import { ScreenHeader } from '../components/ScreenHeader.tsx';
 
-type Props = { onBack: () => void; onOpenDashboard: (credentials: TeacherCredentials) => void };
+type Props = {
+  onBack: () => void;
+  onOpenDashboard: (credentials: TeacherCredentials) => void;
+  onTeacherGuide: () => void;
+};
 
-export function TeacherScreen({ onBack, onOpenDashboard }: Props) {
+export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [created, setCreated] = useState<TeacherCredentials | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +69,11 @@ export function TeacherScreen({ onBack, onOpenDashboard }: Props) {
         </ol>
         <p className="text-sm text-slate-700">
           Students share only a nickname and their answers. Classes are deleted after {CLASS_IDLE_DAYS} days without
-          activity.
+          activity.{' '}
+          <button type="button" onClick={onTeacherGuide} className={`rounded-sm font-semibold text-sky-900 underline ${FOCUS_RING}`}>
+            Read the guide for teachers
+          </button>{' '}
+          for a lesson plan and discussion questions.
         </p>
 
         <div aria-live="polite">

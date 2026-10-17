@@ -1,61 +1,104 @@
 # Hooked
 
-A phishing-spotting game: sort real-looking emails, texts and DMs into phish or legit, then see the red flags. Includes a password breach check that sends only a 5-character hash prefix to Have I Been Pwned, and optional class codes with a teacher dashboard.
+**Spot the phish before it hooks you.** A phishing-awareness game for grades 6 to 12: students sort real-looking emails, texts, and DMs into phish or legit, then see exactly which red flags they missed. Teachers can run it with a whole class from a QR code and review the results together.
 
-## Scripts
+- Live: https://hooked-production-f0a4.up.railway.app
+- <!-- TODO: replace # with the demo video URL --> [Demo video](#)
+
+## The problem
+
+Students get scam messages everywhere they are online: fake login alerts for their game accounts, "your package is on hold" texts, friends' hacked accounts sending links, strangers asking for the code that was just texted to them. Most safety lessons describe phishing in the abstract, but the skill that matters is noticing the small details in a message that looks real, quickly, on a phone or a Chromebook.
+
+## The solution
+
+Hooked turns that skill into a short game. Each round shows a message styled like the app it would arrive in. The student decides **Phish** or **Legit**, and the message then lights up with numbered highlights explaining each red flag (or each sign it's safe). At the end they see their score and which kinds of red flags they miss most.
+
+In a classroom, the teacher creates a class, projects a QR code, and watches a live dashboard of what the class finds hardest, ready to discuss in the last five minutes of the period.
+
+## Features
+
+- **Realistic messages** shown as a mail client, a phone's text app, or a chat app's DMs, with an optional "Situation" line for context.
+- **Explained answers:** each red flag or safe sign is highlighted in the message and explained, including links (hover or focus a link to see where it really goes; links never open).
+- **Results** with "most-missed red flags" and false alarms.
+- **Class mode:** join by QR code or 6-character code with just a nickname; a teacher dashboard that refreshes every 5 seconds (players, average score, most-missed red flags, per-message results), removal of inappropriate nicknames, and a Delete class button.
+- **Password check:** see whether a password has appeared in a data breach without sending it anywhere, plus a random 4-word passphrase suggestion.
+- **Guide for teachers** in the app: a 15 to 20 minute lesson plan, what's stored, and discussion questions.
+- **Accessible:** keyboard shortcuts (P, L, Enter), full keyboard and screen-reader support, WCAG AA contrast, reduced-motion support, and layouts that work down to 375px wide. Checked with axe-core.
+
+## How it works
+
+```mermaid
+flowchart LR
+  B["Browser<br/>React client"] -- "/api (JSON)" --> S["Express server<br/>(one Railway service)"]
+  S -- "Prisma" --> D[("Postgres<br/>on Railway")]
+  B -- "first 5 hex chars of a SHA-1" --> H["Have I Been Pwned<br/>Pwned Passwords API"]
+  S -- "serves the built client" --> B
+```
+
+- **Client:** React 19, Vite, TypeScript and Tailwind CSS v4. All game state lives in React; solo play needs no server calls. Messages live in `shared/messages.ts`, and `npm run check:messages` verifies every highlight matches its message text exactly once.
+- **Server:** Express 5 in TypeScript. It serves the built client and a small JSON API for classes. It grades answers itself from the same shared message data, so the client never reports whether it was right. All input is validated with zod (only a nickname or an answer is accepted), and requests are rate limited in ways that don't penalize a whole classroom sharing one network.
+- **Database:** Postgres through Prisma 7 with three tables: `Class`, `Player`, `Answer`. The 60-player cap is enforced in a single SQL statement, so a whole class can join at once. An hourly job deletes classes that haven't been used for 7 days.
+- **Hosting:** one Railway service plus Railway Postgres. Railway runs `npm run build`, then the pre-deploy command `npm run db:migrate` (a failed migration leaves the previous version running), then `npm start`, with a health check on `/api/health`.
+
+## The password check, step by step
+
+The check uses the Pwned Passwords **range API**, which is built on *k-anonymity*: the service only ever learns a short prefix that hundreds of different passwords share.
+
+1. The student types a password. It stays in the page's memory and is cleared when they leave the screen. It is never stored or logged.
+2. When they press **Check**, the browser computes the password's SHA-1 hash with the built-in Web Crypto API, giving 40 hexadecimal characters.
+3. Only the **first 5 characters** are sent: `GET https://api.pwnedpasswords.com/range/{prefix}`, with the header `Add-Padding: true`.
+4. The API replies with every known breached-password hash that starts with that prefix (about 2,000 suffixes when we tested), each with a count of how many times it appeared in breaches. Because of the padding header, it also adds fake rows with a count of 0, so the size of the response doesn't hint at the prefix.
+5. The browser ignores the padding rows and compares the remaining **35 characters** of the hash against the list, locally.
+6. If there's a match, the student sees how many times the password appeared in breaches; if not, they're told that not being found doesn't make a password strong. A **What left this device** panel shows the 5 characters that were sent next to the full hash.
+7. Hooked suggests a passphrase: 4 words picked from the EFF Long Wordlist with `crypto.getRandomValues` (about 52 bits of randomness).
+
+## Privacy
+
+- **What Hooked stores:** for each student in a class, the nickname they type and their answers (which message, phish or legit, and whether it was right). For each class, a 6-character code and a SHA-256 hash of the teacher's dashboard key; the key itself is only ever shown to the teacher.
+- **Nothing else:** no accounts, real names, email addresses, cookies, or analytics. Solo play doesn't send answers anywhere.
+- **Deletion:** a class, with its players and answers, is deleted when the teacher deletes it, or automatically after 7 days with no use (no joins, no answers, no dashboard visits). The dashboard shows the date.
+- **Passwords** are never stored or sent. Only a 5-character prefix of the password's SHA-1 hash leaves the device (see above).
+- **Logs:** Hooked's own logs don't record IP addresses or player ids. Like any website, the hosting provider (Railway) keeps standard request logs that include IP addresses.
+
+## Run it locally
+
+Requirements: Node.js 22 or newer and npm. A Postgres database is only needed for class mode.
 
 ```sh
 npm install
-npm run dev             # Vite on :5173, Express on :3001 (/api is proxied)
-npm run build           # check:messages, then build client and server
-npm start               # serve the built app on $PORT
-npm run check:messages  # validate highlights and link tokens in shared/messages.ts
-npm run db:migrate      # apply pending migrations (prisma migrate deploy)
+npm run dev        # client on http://localhost:5173, API on :3001 (proxied)
 ```
+
+For class mode, put a connection string in a `.env` file at the repo root (it's gitignored), then apply the migrations:
+
+```sh
+DATABASE_URL=postgresql://user:password@host:5432/db
+```
+
+```sh
+npm run db:migrate
+```
+
+Other scripts:
+
+| Command | What it does |
+| --- | --- |
+| `npm run build` | Checks the messages, then builds the client and server |
+| `npm start` | Serves the built app on `$PORT` |
+| `npm run check:messages` | Validates every message's highlights and links |
+| `npm run smoke -- <url>` | End-to-end check of a deployed site (health, class, join, answer, dashboard, delete); cleans up after itself |
+| `npm run db:migrate:dev -w server -- --name <change>` | Creates a migration after editing `server/prisma/schema.prisma` |
 
 In dev, `?msg=<id>` opens a single message directly.
 
-## Layout
-
-- `client/`: React + Vite app
-- `server/`: Express API and static file server; Prisma schema and migrations in `server/prisma/`
-- `shared/`: message data, flag labels and API types used by both (the server grades answers from this data)
-
-## Classes and the database
-
-Solo play needs no database. Class codes and the teacher dashboard need Postgres via `DATABASE_URL`; without it the server still runs and the class endpoints return 503.
-
-For local development, put the URL in a `.env` at the repo root (gitignored):
-
-```sh
-DATABASE_URL=postgresql://...
-```
-
-To change the schema, edit `server/prisma/schema.prisma` and run `npm run db:migrate:dev -w server -- --name <change>`.
-
-Students can join with the code or by opening `<site>/?join=CODE` (the teacher screen shows it as a QR code), which fills in the code for them.
-
-Limits, designed so a classroom or venue sharing one IP is never blocked (rate limits are in memory, per server instance):
-
-- Class creation: 10 per hour per IP
-- Joins: 300 per 10 minutes per IP, and at most 60 players per class
-- Answers: 60 per minute per player (unknown player ids are rejected before counting)
-
-Rate-limit hits are logged by limit name only; no IPs or player ids are logged.
-
-Class lifecycle:
-
-- Teachers can delete a class from the dashboard (players and answers go with it). Students still in it see "This class was closed" and can keep playing solo.
-- Classes are deleted after 7 days without activity. Activity is a student joining, an answer, the teacher opening the dashboard (first load only, not the 5-second refresh), or "Keep this class". The dashboard shows the deletion date and warns when it's under 24 hours away. Cleanup runs when the server starts and every hour; an expired class is treated as gone even before cleanup removes it.
-
-### Railway
-
-The `hooked` service is configured in the Railway dashboard (no config file):
-
-- Variable `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
-- Pre-deploy command: `npm run db:migrate` (a failed migration leaves the previous deploy running)
-- Healthcheck path: `/api/health`
+To deploy on Railway, create a service from the repo plus a Postgres database, then set the service's `DATABASE_URL` variable to `${{Postgres.DATABASE_URL}}`, its pre-deploy command to `npm run db:migrate`, and its health check path to `/api/health`.
 
 ## Credits
 
-Passphrase words from the EFF Long Wordlist (CC BY 3.0).
+- Passphrase words from the [EFF Long Wordlist](https://www.eff.org/dice) (CC BY 3.0).
+- Breach data from the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) Pwned Passwords API by Troy Hunt. HIBP's API documentation states that the Pwned Passwords API has no licensing or attribution requirements; we credit it here and in the app anyway.
+- All senders, companies, games, and services in the game's messages are fictional.
+
+## AI disclosure
+
+Built with Claude and Claude Code (Anthropic) as AI assistants. Breach data from the Have I Been Pwned Pwned Passwords API.

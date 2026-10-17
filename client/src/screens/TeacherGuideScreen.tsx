@@ -1,0 +1,158 @@
+import { useEffect, useRef, type ReactNode } from 'react';
+import { CLASS_IDLE_DAYS } from '../../../shared/api.ts';
+import { CARD } from '../components/buttonStyles.ts';
+import { ChalkboardIcon, ClockIcon, LockIcon } from '../components/icons.tsx';
+import { ScreenHeader } from '../components/ScreenHeader.tsx';
+
+/** Shareable address for this page: <site>/#for-teachers */
+export const TEACHER_GUIDE_HASH = '#for-teachers';
+
+const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
+  {
+    minutes: 'Before class · 2 min',
+    title: 'Create a class',
+    body: (
+      <>
+        On the start screen choose <strong>I’m a teacher</strong>, then <strong>Create a class</strong>. Open the
+        dashboard link in a tab only you can see, and save it somewhere safe: it can’t be recovered.
+      </>
+    ),
+  },
+  {
+    minutes: '3 min',
+    title: 'Project the QR code',
+    body: (
+      <>
+        Students scan the code, or go to the link and type the class code, then pick a nickname. Ask for nicknames, not
+        full names. Names appear on your dashboard as students join, and you can remove any that aren’t okay.
+      </>
+    ),
+  },
+  {
+    minutes: '7–10 min',
+    title: 'Students play',
+    body: (
+      <>
+        Each student sorts the messages into <strong>Phish</strong> or <strong>Legit</strong> and sees the red flags (or
+        the signs it’s safe) after every answer. Fast finishers can play again (only first answers count for the class)
+        or try the password check.
+      </>
+    ),
+  },
+  {
+    minutes: '5 min',
+    title: 'Review the dashboard together',
+    body: (
+      <>
+        Project the <strong>Most-missed red flags</strong> and <strong>Per message</strong> sections and talk through
+        the messages your class found hardest. Before projecting, switch to full screen (F11, or the full-screen key on
+        a Chromebook) so the private dashboard link in the address bar isn’t shown, and scroll past the player list if
+        you’d rather not show individual scores.
+      </>
+    ),
+  },
+  {
+    minutes: 'After class',
+    title: 'Delete the class, or let it expire',
+    body: (
+      <>
+        Use <strong>Delete class</strong> at the bottom of the dashboard, or leave it: it deletes itself after{' '}
+        {CLASS_IDLE_DAYS} days without use.
+      </>
+    ),
+  },
+];
+
+const QUESTIONS = [
+  'Which message fooled the most people in our class? What made it convincing?',
+  'A link’s text and where it really goes can be different. How can you check before you tap?',
+  'Why do scammers try to rush you? What could you do instead when a message says “act now”?',
+  'A friend’s account sends you a strange link. How could you check it’s really them without replying in the same chat?',
+  'Someone asks you for a code that was texted to you. What could they do with it, and who would you tell?',
+];
+
+export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    headingRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  return (
+    <section aria-labelledby="guide-heading" className="flex flex-col gap-6">
+      <ScreenHeader id="guide-heading" headingRef={headingRef} icon={<ChalkboardIcon className="size-6" />} title="For teachers" onBack={onBack}>
+        How to run Hooked in one 15 to 20 minute class period, what it stores, and questions for afterwards.
+      </ScreenHeader>
+
+      <Section id="plan-heading" icon={<ClockIcon className="size-5" />} title="One class period">
+        <ol className="mt-4 flex flex-col gap-5">
+          {PLAN.map((step, i) => (
+            <li key={step.title} className="flex gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sky-800 font-bold text-white">{i + 1}</span>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-sky-900 uppercase">{step.minutes}</p>
+                <h4 className="font-bold">{step.title}</h4>
+                <p className="mt-1 text-sm leading-relaxed text-slate-700">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      <Section id="data-heading" icon={<LockIcon className="size-5" />} title="What’s stored, and for how long">
+        <ul className="mt-4 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-slate-700">
+          <li>
+            <strong className="text-slate-900">For each student:</strong> the nickname they type and their answers (which
+            message, phish or legit, and whether it was right). Hooked doesn’t ask for names, emails, or accounts.
+          </li>
+          <li>
+            <strong className="text-slate-900">For the class:</strong> a 6-character code and a scrambled (hashed) copy of
+            your dashboard key.
+          </li>
+          <li>
+            <strong className="text-slate-900">How long:</strong> until you delete the class, or {CLASS_IDLE_DAYS} days after
+            it was last used (a student joining or answering, or you opening the dashboard). The dashboard shows the date.
+          </li>
+          <li>
+            <strong className="text-slate-900">Playing without a class code</strong> doesn’t send any answers to Hooked’s
+            server.
+          </li>
+          <li>
+            <strong className="text-slate-900">Password check:</strong> passwords are never stored or sent. Only the first 5
+            characters of the password’s hash leave the device, to look it up in Have I Been Pwned.
+          </li>
+          <li>
+            Like any website, the hosting provider keeps standard request logs, which include IP addresses. Hooked itself
+            doesn’t store or log them.
+          </li>
+        </ul>
+      </Section>
+
+      <Section id="questions-heading" icon={<ChalkboardIcon className="size-5" />} title="Discussion questions">
+        <ol className="mt-4 flex list-decimal flex-col gap-2 pl-5 text-sm leading-relaxed text-slate-700 marker:font-bold marker:text-sky-900">
+          {QUESTIONS.map((q) => (
+            <li key={q}>{q}</li>
+          ))}
+        </ol>
+      </Section>
+
+      <p className="rounded-2xl bg-amber-50 px-5 py-4 text-sm text-amber-950 ring-1 ring-amber-200">
+        <strong>Everything in the game is made up.</strong> All senders, companies, games, and services are fictional, and
+        any resemblance to real ones is unintended. Links in the messages never open anything; they only show where they
+        would lead.
+      </p>
+    </section>
+  );
+}
+
+function Section({ id, icon, title, children }: { id: string; icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={id} className={`${CARD} p-5 sm:p-6`}>
+      <h3 id={id} className="flex items-center gap-2 text-xl font-bold">
+        <span className="grid size-8 place-items-center rounded-lg bg-sky-100 text-sky-800">{icon}</span>
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}

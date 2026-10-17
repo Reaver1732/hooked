@@ -189,6 +189,18 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
         </section>
       )}
 
+      <p className="text-center text-xs text-slate-700">
+        Breach data from the{' '}
+        <a
+          href="https://haveibeenpwned.com/Passwords"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`rounded-sm font-semibold text-sky-900 underline ${FOCUS_RING}`}
+        >
+          Have I Been Pwned
+        </a>{' '}
+        Pwned Passwords API.
+      </p>
     </section>
   );
 }

@@ -10,10 +10,11 @@ type Props = {
   onJoinClass: () => void;
   onLeaveClass: () => void;
   onTeacher: () => void;
+  onTeacherGuide: () => void;
   onPasswordCheck: () => void;
 };
 
-export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTeacher, onPasswordCheck }: Props) {
+export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck }: Props) {
   const joinRef = useRef<HTMLButtonElement>(null);
   const hadSession = useRef(session !== null);
 
@@ -78,6 +79,10 @@ export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTea
         Teaching this?{' '}
         <button type="button" onClick={onTeacher} className={`rounded-sm font-semibold text-sky-900 underline ${FOCUS_RING}`}>
           I’m a teacher
+        </button>
+        {' · '}
+        <button type="button" onClick={onTeacherGuide} className={`rounded-sm font-semibold text-sky-900 underline ${FOCUS_RING}`}>
+          Guide for teachers
         </button>
       </p>
     </section>
