@@ -35,176 +35,50 @@ export type Message = {
 
 export const messages: Message[] = [
   {
-    id: "bank-signin-phish",
-    kind: "email",
-    from: { name: "Northwind Bank", address: "alerts@northwlnd-secure.com" },
-    subject: "Unusual sign-in detected on your account",
-    body: [
-      "Dear Customer,",
-      "We detected an unusual sign-in attempt and have temporarily limited access to your Northwind Bank account.",
-      "To restore access, visit {{0}} and confirm your password and card details within 24 hours or your account will be permanently closed.",
-      "Northwind Security Team",
-    ].join("\n\n"),
-    links: [
-      {
-        text: "northwindbank.com/restore",
-        realUrl: "http://northwlnd-secure.com/login.php?id=88213",
-      },
-    ],
-    isPhish: true,
-    highlights: [
-      {
-        match: "alerts@northwlnd-secure.com",
-        type: "lookalike-sender",
-        note: '"northwlnd" uses an L in place of the I. The bank\'s real domain is northwindbank.com.',
-      },
-      {
-        match: "Dear Customer",
-        type: "generic-greeting",
-        note: "Your real bank knows your name and uses it.",
-      },
-      {
-        match: "confirm your password and card details",
-        type: "asks-for-credentials",
-        note: "Banks never ask for your password or card details by email.",
-      },
-      {
-        match: "within 24 hours or your account will be permanently closed",
-        type: "urgency",
-        note: "A countdown and a threat are there to rush you before you think.",
-      },
-      {
-        match: "northwindbank.com/restore",
-        type: "mismatched-link",
-        note: "The link text shows the real bank, but hover it: it actually goes to northwlnd-secure.com.",
-      },
-    ],
-  },
-  {
-    id: "bank-statement-legit",
-    kind: "email",
-    from: { name: "Northwind Bank", address: "statements@northwindbank.com" },
-    subject: "Your October statement is ready",
-    body: [
-      "Hi Jordan,",
-      "Your October statement for the checking account ending in 4821 is now available.",
-      "You can {{0}} in online banking or the Northwind app.",
-      "Reminder: we will never ask for your password by email.",
-      "Northwind Bank",
-    ].join("\n\n"),
-    links: [
-      {
-        text: "view your statement",
-        realUrl: "https://www.northwindbank.com/statements",
-      },
-    ],
+    id: "real-code-legit",
+    kind: "text",
+    context: "You're logging in to Glimmerforge on your new phone.",
+    from: { name: "Glimmerforge", address: "55501" },
+    body:
+      "Glimmerforge: 482913 is your login code. " +
+      "Don't share this code with anyone. Glimmerforge will never ask you for it.",
+    links: [],
     isPhish: false,
     highlights: [
       {
-        match: "statements@northwindbank.com",
-        note: "Sent from the bank's real domain, spelled correctly.",
+        match: "482913 is your login code",
+        note: "You just tried to log in, so you expected this. A code you didn't ask for means someone else is trying to get in.",
       },
       {
-        match: "Hi Jordan",
-        note: "Addresses you by name.",
-      },
-      {
-        match: "ending in 4821",
-        note: "Shows only the last few digits, information the real bank has and a scammer usually would not.",
-      },
-      {
-        match: "we will never ask for your password by email",
-        note: "Nothing here asks you to hand over credentials.",
-      },
-      {
-        match: "view your statement",
-        note: "Hover the link: it really goes to northwindbank.com.",
+        match: "Don't share this code with anyone.",
+        note: 'Real services tell you never to share codes. Anyone who asks for one, even a "friend," is trying to get into your account.',
       },
     ],
   },
   {
-    id: "parcel-fee-phish",
-    kind: "text",
-    from: { name: "Unknown", address: "+1 (555) 014-2290" },
-    body: "ParcelPoint: your package is on hold for an unpaid $1.99 redelivery fee. Pay today to avoid return to sender: {{0}}",
-    links: [
-      {
-        text: "parcelpoint-redelivery.co/pay",
-        realUrl: "http://parcelpoint-redelivery.co/pay?trk=PP19920",
-      },
-    ],
-    isPhish: true,
-    highlights: [
-      {
-        match: "+1 (555) 014-2290",
-        type: "lookalike-sender",
-        note: "Delivery companies text from short codes, not a random personal number.",
-      },
-      {
-        match: "Pay today to avoid return to sender",
-        type: "urgency",
-        note: "A tiny fee plus a deadline is a classic way to rush you into paying.",
-      },
-      {
-        match: "parcelpoint-redelivery.co",
-        type: "mismatched-link",
-        note: 'Not ParcelPoint\'s own site: "-redelivery.co" is a separate domain anyone can register.',
-      },
-    ],
-  },
-  {
-    id: "code-scam-phish",
-    kind: "text",
-    from: { name: "Unknown", address: "(920) 555-0147" },
-    body:
-      "hey sorry!! i was making a Glimmerforge account and put in your number by accident. " +
-      "you should have gotten a 6 digit code, can u send it to me real quick? thx",
-    links: [],
-    isPhish: true,
-    highlights: [
-      {
-        match: "can u send it to me",
-        type: "asks-for-credentials",
-        note: "That code was sent to you because someone is trying to get into an account tied to your number. Probably yours.",
-      },
-      {
-        match: "real quick",
-        type: "urgency",
-        note: "Rushing you so you send it before you think about why a stranger needs your code.",
-      },
-    ],
-  },
-  {
-    id: "copyright-dm-phish",
+    id: "hacked-friend-dm-phish",
     kind: "dm",
-    context: "You posted a video of your band covering a popular song yesterday.",
-    from: { name: "Chirp Support", address: "@chirp.support.team" },
-    body: [
-      "Hello, your account has been reported for copyright infringement and will be deleted in 12 hours.",
-      "If you believe this is a mistake, submit an appeal here: {{0}}",
-    ].join("\n\n"),
+    context:
+      "Jayden is a friend from school. You usually just talk about games.",
+    from: { name: "Jayden", address: "@jaydenplays" },
+    body: "yo is this u in this video?? everyone is sharing it {{0}}",
     links: [
       {
-        text: "chirp-appeal-center.com/form",
-        realUrl: "http://chirp-appeal-center.com/form?u=88412",
+        text: "clipz.watch/v/8Hq2",
+        realUrl: "https://clipz-watch.login-verify.co/v/8Hq2",
       },
     ],
     isPhish: true,
     highlights: [
       {
-        match: "@chirp.support.team",
-        type: "lookalike-sender",
-        note: "Anyone can name an account \"support\". Real platform notices arrive in official notifications, not DMs.",
-      },
-      {
-        match: "will be deleted in 12 hours",
+        match: "is this u in this video??",
         type: "urgency",
-        note: "A deadline to make you appeal before you stop to check.",
+        note: "Panic gets you to click before you think. If it doesn't sound like your friend, ask them another way, like in person or by text.",
       },
       {
-        match: "chirp-appeal-center.com",
+        match: "clipz.watch/v/8Hq2",
         type: "mismatched-link",
-        note: "Not Chirp's own domain. The appeal form is where they'd ask for your login.",
+        note: "It looks like a video link, but it goes to login-verify.co. A video site that makes you log in first is a trap.",
       },
     ],
   },
