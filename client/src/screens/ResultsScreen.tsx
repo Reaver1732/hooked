@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { PRIMARY_BUTTON } from '../components/buttonStyles.ts';
+import { PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
 import { FLAG_LABELS } from '../data/flags.ts';
 import type { FlagType } from '../data/messages.ts';
 import { isCorrect, type Answer } from '../game/types.ts';
 
-type Props = { answers: Answer[]; onPlayAgain: () => void };
+type Props = { answers: Answer[]; onPlayAgain: () => void; onPasswordCheck: () => void };
 
-export function ResultsScreen({ answers, onPlayAgain }: Props) {
+export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -78,9 +78,14 @@ export function ResultsScreen({ answers, onPlayAgain }: Props) {
         </p>
       </section>
 
-      <button type="button" onClick={onPlayAgain} className={`${PRIMARY_BUTTON} self-start`}>
-        Play again
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={onPlayAgain} className={PRIMARY_BUTTON}>
+          Play again
+        </button>
+        <button type="button" onClick={onPasswordCheck} className={SECONDARY_BUTTON}>
+          Check a password
+        </button>
+      </div>
     </section>
   );
 }
