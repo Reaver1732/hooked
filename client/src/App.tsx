@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { messages } from './data/messages.ts';
-import { shuffle } from './game/shuffle.ts';
+import { messages, type Message } from './data/messages.ts';
 import type { Answer } from './game/types.ts';
 import { PlayScreen } from './screens/PlayScreen.tsx';
 import { ResultsScreen } from './screens/ResultsScreen.tsx';
@@ -8,13 +7,27 @@ import { StartScreen } from './screens/StartScreen.tsx';
 
 type Screen =
   | { name: 'start' }
-  | { name: 'play'; deck: typeof messages; round: number }
+  | { name: 'play'; deck: Message[]; round: number }
   | { name: 'results'; answers: Answer[]; round: number };
 
+function initialScreen(): Screen {
+  // Dev-only preview: ?msg=<id> opens that message directly. import.meta.env.DEV is
+  // replaced with `false` in production builds, so this whole branch is dropped.
+  if (import.meta.env.DEV) {
+    const id = new URLSearchParams(window.location.search).get('msg');
+    if (id) {
+      const message = messages.find((m) => m.id === id);
+      if (message) return { name: 'play', deck: [message], round: 1 };
+      console.warn(`?msg=${id} matches no message. Known ids: ${messages.map((m) => m.id).join(', ')}`);
+    }
+  }
+  return { name: 'start' };
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<Screen>({ name: 'start' });
+  const [screen, setScreen] = useState<Screen>(initialScreen);
   const round = screen.name === 'start' ? 0 : screen.round;
-  const play = () => setScreen({ name: 'play', deck: shuffle(messages), round: round + 1 });
+  const play = () => setScreen({ name: 'play', deck: messages, round: round + 1 });
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-10">
