@@ -233,4 +233,67 @@ export const messages: Message[] = [
       },
     ],
   },
+  {
+    id: "snow-day-legit",
+    kind: "text",
+    context:
+      "It snowed a lot overnight. Your family signed up for the district's text alerts.",
+    from: { name: "Harbor Pines Schools", address: "67283" },
+    body:
+      "Harbor Pines Schools: Due to heavy snow, all schools are closed today. " +
+      "After-school activities are canceled. Updates at {{0}}",
+    links: [
+      {
+        text: "harborpinesschools.org",
+        realUrl: "https://harborpinesschools.org",
+      },
+    ],
+    isPhish: false,
+    highlights: [
+      {
+        match: "all schools are closed today",
+        note: "It only gives you information. It doesn't ask you to sign in, pay, or send anything.",
+      },
+      {
+        match: "harborpinesschools.org",
+        note: "The link goes exactly where it says: the school's real website.",
+      },
+    ],
+  },
+  {
+    id: "storage-full-phish",
+    kind: "email",
+    context: "You use your school account for classwork and saving files.",
+    from: { name: "HPSD IT Help Desk", address: "helpdesk@harborpines-it.com" },
+    subject: "Your storage is 98% full",
+    body:
+      "Your school account storage is almost full (14.7 GB of 15 GB).\n\n" +
+      "When it's full, you won't be able to send email or save work, and older files may be deleted.\n\n" +
+      "Students can upgrade to 50 GB for free: {{0}}\n\n" +
+      "HPSD IT Help Desk",
+    links: [
+      {
+        text: "Upgrade my storage",
+        realUrl: "https://harborpines-it.com/storage/login",
+      },
+    ],
+    isPhish: true,
+    highlights: [
+      {
+        match: "helpdesk@harborpines-it.com",
+        type: "lookalike-sender",
+        note: "Your school's IT team uses @harborpinesschools.org like everyone else at school.",
+      },
+      {
+        match: "older files may be deleted",
+        type: "urgency",
+        note: "Threatening your schoolwork is meant to make you panic and click.",
+      },
+      {
+        match: "Upgrade my storage",
+        type: "asks-for-credentials",
+        note: "Real storage warnings tell you to delete old files. They don't offer upgrades through a link that asks you to sign in.",
+      },
+    ],
+  },
 ];
