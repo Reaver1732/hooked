@@ -8,13 +8,17 @@ export type FlagType =
   | 'unexpected-attachment';
 
 // `match` must be an exact substring of the message, found exactly once across
-// from.name, from.address, subject (emails only) and the rendered body (link tokens
-// replaced by link text). Run `npm run check:messages`.
+// from.name, from.address, subject (emails only), the rendered body (link tokens
+// replaced by link text) and attachment names (emails only). Run `npm run check:messages`.
 export type Highlight = { match: string; type?: FlagType; note: string };
 
 // Rendered as a <FakeLink>, never a real <a>. Placed inline where the body has
 // {{i}} (its index in `links`); every link must be referenced exactly where it shows.
 export type FakeLink = { text: string; realUrl: string };
+
+// A file chip under an email's body, e.g. { name: "Invoice.pdf.zip", size: "48 KB" }.
+// It can never be opened. The name can be highlighted; the size can't.
+export type Attachment = { name: string; size: string };
 
 export type Message = {
   id: string;
@@ -29,6 +33,7 @@ export type Message = {
 
   body: string;
   links: FakeLink[];
+  attachments?: Attachment[]; // emails only
   isPhish: boolean;
   highlights: Highlight[]; // red flags for phish, safe signs for legit
 };
@@ -367,6 +372,67 @@ export const messages: Message[] = [
         match: "$25 processing fee and your Social Security number",
         type: "asks-for-credentials",
         note: "Real scholarships never charge you to receive money. Paying to get paid is always a scam.",
+      },
+    ],
+  },
+  {
+    id: "coach-text-legit",
+    kind: "text",
+    context:
+      "You're on the JV soccer team, and Coach Reed's number is saved in your phone.",
+    from: { name: "Coach Reed", address: "(920) 555-0164" },
+    body:
+      "Hey team, practice is moved inside to the small gym today because of the rain. " +
+      "Same time, 3:30. Bring indoor shoes if you have them.",
+    links: [],
+    isPhish: false,
+    highlights: [
+      {
+        match: "Coach Reed",
+        note: "A saved contact you already know, texting about something you expected.",
+      },
+      {
+        match: "because of the rain",
+        note: "Details you can check yourself: look outside or ask a teammate.",
+      },
+      {
+        match: "Bring indoor shoes if you have them.",
+        note: "It doesn't ask for money, codes, passwords, or personal info.",
+      },
+    ],
+  },
+  {
+    id: "photo-zip-phish",
+    kind: "email",
+    context: "Picture day at school was two weeks ago.",
+    from: {
+      name: "Lumen School Photos",
+      address: "orders@lumen-photos-delivery.com",
+    },
+    subject: "Your picture day photos are ready!",
+    body:
+      "Hi there,\n\n" +
+      "Great news, your picture day photos are ready! Open the attached file to preview your photos and choose your package.\n\n" +
+      "Special price ends tonight at midnight.\n\n" +
+      "Lumen School Photos",
+    attachments: [{ name: "Your_Photos_Preview.zip", size: "2.1 MB" }],
+    links: [],
+    isPhish: true,
+    highlights: [
+      {
+        match: "Hi there",
+        type: "generic-greeting",
+        note: "The photo company has your name. They'd use it.",
+      },
+      {
+        match: "Your_Photos_Preview.zip",
+        type: "unexpected-attachment",
+        note: "Photo previews don't come as .zip files. Surprise attachments, especially .zip, .exe, or .html, can install malware or open fake sign-in pages.",
+      },
+      {
+        match: "Special price ends tonight at midnight.",
+        type: "urgency",
+        note: "A rushed deadline so you open the file before you ask a parent.",
       },
     ],
   },
