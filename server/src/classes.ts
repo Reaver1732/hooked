@@ -75,7 +75,19 @@ const VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
 // Real names need at most a few per letter (Vietnamese and Thai stack two or three).
 const STACKED_MARKS = /\p{M}{4,}/u;
 
+// Look-alikes: NFKC folds compatibility forms (fullwidth "ＡＢＣ" becomes "ABC") so the duplicate
+// check sees them, and a name can't mix Latin with Cyrillic or Greek letters, where "а" and "a"
+// look the same. A whole name in one of those alphabets is fine.
+const LATIN = /\p{Script=Latin}/u;
+const CYRILLIC = /\p{Script=Cyrillic}/u;
+const GREEK = /\p{Script=Greek}/u;
+const mixesLookalikeScripts = (s: string) =>
+  [LATIN, CYRILLIC, GREEK].filter((script) => script.test(s)).length > 1;
+
 const newNicknameSchema = nicknameSchema
+  .transform((s) => s.normalize('NFKC').trim().replace(/\s+/g, ' '))
+  .refine((s) => s.length > 0 && [...s].length <= NICKNAME_MAX, `Nickname must be 1 to ${NICKNAME_MAX} characters`)
+  .refine((s) => !mixesLookalikeScripts(s), 'Use one alphabet in a nickname, so it can’t pass for someone else’s')
   .refine((s) => !INVISIBLE.test(s.replace(EMOJI_SEQUENCE, 'x')), 'Nickname contains characters that aren’t allowed')
   .refine((s) => !STACKED_MARKS.test(s), 'Nickname has too many accent marks on one letter')
   .refine((s) => VISIBLE.test(s.replaceAll('\u2800', '')), 'Nickname needs at least one letter or number');
@@ -218,11 +230,12 @@ classesRouter.post('/classes/:code/rejoin', rejoinIpLimit, rejoinClassLimit, asy
   const { nickname, rejoinCode } = parse(rejoinBody, req.body);
   const cls = await findActiveClass(code);
   if (!cls) throw new HttpError(404, 'No class with that code');
-  // Exact, case-insensitive match (see join). If two players ever share a name, the one whose
-  // code matches is the one rejoining.
+  // Exact, case-insensitive match (see join), as typed or folded like new names are (NFKC), so
+  // "ｋｉｍ" typed on another device finds "kim". If two players ever share a name, the one
+  // whose code matches is the one rejoining.
   const candidates = await db().$queryRaw<{ id: string; nickname: string; rejoinCodeHash: string | null }[]>`
     SELECT id, nickname, "rejoinCodeHash" FROM "Player"
-    WHERE "classId" = ${cls.id} AND lower(nickname) = lower(${nickname})`;
+    WHERE "classId" = ${cls.id} AND lower(nickname) IN (lower(${nickname}), lower(${nickname.normalize('NFKC')}))`;
   const player = candidates.find(
     (p) => p.rejoinCodeHash && hashesEqual(hashRejoinCode(p.id, rejoinCode), p.rejoinCodeHash),
   );

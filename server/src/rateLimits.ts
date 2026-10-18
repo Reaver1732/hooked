@@ -91,11 +91,11 @@ export const answerLimit = limiter({
 
 /**
  * The rejoin limiter's key for one student: the class code (trimmed and uppercased like the
- * route's codeSchema) and the nickname (normalized like nicknameSchema, then lowercased the way
- * nickname lookups compare). Used by the limiter and by the teacher's "Reset code".
+ * route's codeSchema) and the nickname (folded with NFKC like new nicknames, then lowercased
+ * the way nickname lookups compare). Used by the limiter and by the teacher's "Reset code".
  */
 export const rejoinKey = (code: string, nickname: string) =>
-  `${code.trim().toUpperCase()}:${nickname.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase()}`;
+  `${code.trim().toUpperCase()}:${nickname.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()}`;
 
 const CLASS_CODE_SHAPE = new RegExp(`^[${CLASS_CODE_ALPHABET}]{${CLASS_CODE_LENGTH}}$`);
 
