@@ -302,10 +302,18 @@ export function SessionLine({ session, onLeave }: { session: ClassSession; onLea
   );
 }
 
-export function SavedClasses({ classes, onOpen }: { classes: StoredClass[]; onOpen: (c: TeacherCredentials) => void }) {
+type SavedClassesProps = {
+  classes: StoredClass[];
+  onOpen: (c: TeacherCredentials) => void;
+  /** Removes the class from this browser only. */
+  onForget: (code: string) => void;
+  headingRef?: Ref<HTMLHeadingElement>;
+};
+
+export function SavedClasses({ classes, onOpen, onForget, headingRef }: SavedClassesProps) {
   return (
     <section aria-labelledby="my-classes-heading" className="hk-card p-5 sm:p-6">
-      <h2 id="my-classes-heading" className="hk-display flex items-center gap-3 text-heading">
+      <h2 id="my-classes-heading" ref={headingRef} tabIndex={-1} className="hk-display flex items-center gap-3 text-heading outline-none">
         <IconTile tone="muted">
           <ChalkboardIcon className="size-6" />
         </IconTile>
@@ -320,14 +328,19 @@ export function SavedClasses({ classes, onOpen }: { classes: StoredClass[]; onOp
                 created {new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
               </span>
             </span>
-            <button
-              type="button"
-              onClick={() => onOpen({ code: c.code, teacherKey: c.teacherKey })}
-              aria-label={`Open dashboard for class ${c.code}`}
-              className={button('secondary', 'sm')}
-            >
-              Open dashboard
-            </button>
+            <span className="flex items-center gap-4">
+              <button type="button" onClick={() => onForget(c.code)} aria-label={`Forget class ${c.code} on this device`} className="hk-link text-small">
+                Forget
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpen({ code: c.code, teacherKey: c.teacherKey })}
+                aria-label={`Open dashboard for class ${c.code}`}
+                className={button('secondary', 'sm')}
+              >
+                Open dashboard
+              </button>
+            </span>
           </li>
         ))}
       </ul>

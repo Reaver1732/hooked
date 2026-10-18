@@ -28,7 +28,7 @@ export type StartScreenProps = {
 export function StartScreen(props: StartScreenProps) {
   const { session, onStart, onQuickStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck } = props;
   const { rejoinCode, onDismissRejoinCode, onOpenDashboard, starting = false } = props;
-  const { joinRef, headingRef, rejoinRef, classes } = useStartScreen({ session, rejoinCode });
+  const { joinRef, headingRef, rejoinRef, classesHeadingRef, classes, forget } = useStartScreen({ session, rejoinCode });
 
   return (
     <div className="flex flex-col gap-10 sm:gap-12">
@@ -104,7 +104,9 @@ export function StartScreen(props: StartScreenProps) {
         </OptionCard>
       </div>
 
-      {classes.length > 0 && <SavedClasses classes={classes} onOpen={onOpenDashboard} />}
+      {classes.length > 0 && (
+        <SavedClasses classes={classes} onOpen={onOpenDashboard} onForget={forget} headingRef={classesHeadingRef} />
+      )}
 
       <TeacherLinks onTeacher={onTeacher} onTeacherGuide={onTeacherGuide} />
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '../class/api.ts';
+import { forgetDashboardKey } from '../class/dashboardLink.ts';
 import { forgetClass, storedClasses, type StoredClass } from '../class/storage.ts';
 import type { ClassSession } from './JoinScreen.tsx';
 
@@ -11,6 +12,7 @@ export function useStartScreen({ session, rejoinCode }: { session: ClassSession 
   const joinRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const rejoinRef = useRef<HTMLHeadingElement>(null);
+  const classesHeadingRef = useRef<HTMLHeadingElement>(null);
   const hadSession = useRef(session !== null);
   const [classes, setClasses] = useState<StoredClass[]>(storedClasses);
 
@@ -40,5 +42,19 @@ export function useStartScreen({ session, rejoinCode }: { session: ClassSession 
     hadSession.current = session !== null;
   }, [session]);
 
-  return { joinRef, headingRef, rejoinRef, classes };
+  // "Forget" on a shared computer: drop the class from this browser only. The class and its
+  // results stay, and the saved dashboard link still opens it.
+  const forget = (code: string) => {
+    if (!window.confirm(`Forget class ${code} on this device? The class and its results stay; you’ll need the dashboard link you saved to open it again.`)) {
+      return;
+    }
+    forgetClass(code);
+    forgetDashboardKey(code);
+    const rest = classes.filter((c) => c.code !== code);
+    setClasses(rest);
+    // The row (and its button) is gone: keep focus nearby.
+    requestAnimationFrame(() => (rest.length ? classesHeadingRef : headingRef).current?.focus({ preventScroll: true }));
+  };
+
+  return { joinRef, headingRef, rejoinRef, classesHeadingRef, classes, forget };
 }

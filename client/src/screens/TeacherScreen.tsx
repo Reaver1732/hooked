@@ -124,7 +124,7 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
         <p className="mt-3 text-small text-card-ink-muted">
           <strong className="text-card-ink">Keep this link private.</strong> Anyone with it can see your class’s results and
           remove students. This browser also remembers the class so you can reopen its dashboard from the start screen; on
-          a shared computer, delete the class when you’re done or use a private window. Don’t project it or share it, and
+          a shared computer, press Forget next to it on the start screen when you’re done (the class stays), or use a private window. Don’t project it or share it, and
           save it somewhere safe: it can’t be recovered.
         </p>
         <p id="dashboard-link" className="mt-4 rounded-chip bg-surface-muted px-3 py-2 font-code text-micro break-all">
