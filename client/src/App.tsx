@@ -77,6 +77,13 @@ const SCREEN_WIDTHS: Record<Screen['name'], string> = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+type AnswerBody = Parameters<typeof api.submitAnswer>[0];
+
+/** Shown while answers are waiting to be re-sent. Cleared once they all get through. */
+const QUEUED_MESSAGE = 'Some answers haven’t reached your class yet. Keep this page open and they’ll be sent.';
+/** How often queued answers are re-sent. */
+const RESEND_MS = 5000;
+
 /**
  * Rebuilds the answers a resumed attempt already has, in deck order. Stops at the first
  * unanswered message, which is where play resumes (answers are given in order).
@@ -101,6 +108,13 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   /** A new player's rejoin code, shown once on the start screen. */
   const [rejoinCode, setRejoinCode] = useState<string | null>(null);
+  /**
+   * Answers that failed every quick retry, keyed by attempt and message. They're re-sent on a
+   * timer, when the browser comes back online, and before the next round starts. Re-sending is
+   * safe: the server keeps only the first answer to each message in an attempt.
+   */
+  const queuedRef = useRef(new Map<string, { code: string; body: AnswerBody }>());
+  const flushingRef = useRef(false);
   /** Answers still being sent to the class (Results waits on these before saying they arrived). */
   const [pendingSends, setPendingSends] = useState(0);
   /** The class attempt answers are reported to (set when a class round starts). */
@@ -165,8 +179,60 @@ export default function App() {
     [closeSession],
   );
 
+  /** One try at sending an answer: 'done' (sent, or no point retrying) or 'retry'. */
+  const trySend = useCallback(
+    async (code: string, body: AnswerBody, { queued = false } = {}): Promise<'done' | 'retry'> => {
+      try {
+        await api.submitAnswer(body);
+        return 'done';
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 404) {
+          await explainMissingPlayer(code, err.message);
+          return 'done';
+        }
+        if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
+          // A queued answer can arrive after its attempt finished; that's not worth an error.
+          if (!(queued && err.status === 409)) setSyncError(err.message);
+          return 'done';
+        }
+        return 'retry';
+      }
+    },
+    [explainMissingPlayer],
+  );
+
+  /** Re-sends queued answers in order, stopping at the first that still can't get through. */
+  const flushQueued = useCallback(async () => {
+    if (flushingRef.current) return;
+    flushingRef.current = true;
+    try {
+      const queued = queuedRef.current;
+      for (const [key, { code, body }] of [...queued]) {
+        if ((await trySend(code, body, { queued: true })) === 'retry') break;
+        queued.delete(key);
+      }
+      if (queued.size === 0) setSyncError((e) => (e === QUEUED_MESSAGE ? null : e));
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [trySend]);
+
+  useEffect(() => {
+    const resend = () => {
+      if (queuedRef.current.size) void flushQueued();
+    };
+    const timer = window.setInterval(resend, RESEND_MS);
+    window.addEventListener('online', resend);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('online', resend);
+    };
+  }, [flushQueued]);
+
   const play = async () => {
     let initialAnswers: Answer[] = [];
+    // Answers still waiting from the last round go first, so it can finish before the next starts.
+    if (queuedRef.current.size) await flushQueued();
     attemptIdRef.current = null;
     setSyncError(null);
     setNotice(null);
@@ -246,29 +312,19 @@ export default function App() {
       };
       setPendingSends((n) => n + 1);
       try {
+        // Three quick tries (waiting 1 s, then 2 s, between them). After that the answer is
+        // queued and re-sent later instead of being dropped.
         for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            await api.submitAnswer(body);
-            return;
-          } catch (err) {
-            if (err instanceof ApiRequestError && err.status === 404) {
-              await explainMissingPlayer(session.code, err.message);
-              return;
-            }
-            // Other 4xx won't get better on retry.
-            if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
-              setSyncError(err.message);
-              return;
-            }
-            await sleep(1000 * 2 ** attempt);
-          }
+          if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+          if ((await trySend(session.code, body)) === 'done') return;
         }
-        setSyncError('Couldn’t send an answer to your class. Check your connection.');
+        queuedRef.current.set(`${attemptId}:${body.messageId}`, { code: session.code, body });
+        setSyncError(QUEUED_MESSAGE);
       } finally {
         setPendingSends((n) => n - 1);
       }
     },
-    [session, explainMissingPlayer],
+    [session, trySend],
   );
 
   const inGame = screen.name === 'start' || screen.name === 'play' || screen.name === 'results';
