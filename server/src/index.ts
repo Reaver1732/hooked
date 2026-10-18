@@ -101,6 +101,12 @@ if (clientDist) {
   );
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
+    // A missing file (an old hashed asset, a renamed wordlist) is a 404, not the app's HTML,
+    // which would otherwise be parsed as the file. App routes never contain a dot.
+    if (req.path.startsWith('/assets/') || path.extname(req.path)) {
+      res.status(404).type('text/plain').send('Not found');
+      return;
+    }
     res.sendFile(path.join(clientDist, 'index.html'), { headers: NO_CACHE });
   });
 }
