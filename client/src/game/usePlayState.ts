@@ -11,6 +11,8 @@ export type PlayStateOptions = {
   initialAnswers?: Answer[];
   /** Whether P and L answer (they can be turned off; Enter for Next always works). */
   letterShortcuts?: boolean;
+  /** The class already had a different answer for this message; show that one instead. */
+  correction?: { messageId: string; guessedPhish: boolean; seq: number } | null;
 };
 
 /**
@@ -20,7 +22,7 @@ export type PlayStateOptions = {
 // The play screen's two-column breakpoint (Tailwind's lg, as used in PlayScreen).
 const TWO_COLUMNS = '(min-width: 64rem)';
 
-export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [], letterShortcuts = true }: PlayStateOptions) {
+export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [], letterShortcuts = true, correction = null }: PlayStateOptions) {
   const [index, setIndex] = useState(initialAnswers.length);
   const [answers, setAnswers] = useState<Answer[]>(initialAnswers);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -49,6 +51,13 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [], le
     if (isLast) onFinish(answers);
     else setIndex((i) => i + 1);
   }, [isLast, onFinish, answers]);
+
+  useEffect(() => {
+    if (!correction) return;
+    setAnswers((list) =>
+      list.map((a) => (a.message.id === correction.messageId ? { ...a, guessedPhish: correction.guessedPhish } : a)),
+    );
+  }, [correction]);
 
   // New message: start at the top and put focus on the progress heading.
   useEffect(() => {

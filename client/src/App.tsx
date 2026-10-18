@@ -230,11 +230,30 @@ export default function App() {
     [closeSession],
   );
 
+  // The server keeps the first answer per message. If another tab or device answered first, it
+  // reports that answer's grading; show that answer here too, so this screen agrees with the
+  // dashboard. Only for the round on screen.
+  const [correction, setCorrection] = useState<{ messageId: string; guessedPhish: boolean; seq: number } | null>(null);
+  const applyServerGrading = useCallback((body: AnswerBody, correct: boolean) => {
+    const message = messages.find((m) => m.id === body.messageId);
+    if (!message || body.attemptId !== attemptIdRef.current) return;
+    const guessedPhish = correct ? message.isPhish : !message.isPhish;
+    if (guessedPhish === (body.choice === 'phish')) return;
+    setCorrection((c) => ({ messageId: message.id, guessedPhish, seq: (c?.seq ?? 0) + 1 }));
+    setScreen((s) =>
+      s.name === 'results'
+        ? { ...s, answers: s.answers.map((a) => (a.message.id === message.id ? { ...a, guessedPhish } : a)) }
+        : s,
+    );
+    setNotice('This message was already answered for your class in another tab or on another device. That answer is the one that counts, so it’s shown here.');
+  }, []);
+
   /** One try at sending an answer: 'done' (sent, or no point retrying) or 'retry'. */
   const trySend = useCallback(
     async (code: string, body: AnswerBody, { queued = false } = {}): Promise<'done' | 'retry'> => {
       try {
-        await api.submitAnswer(body);
+        const result = await api.submitAnswer(body);
+        if (result.alreadyAnswered) applyServerGrading(body, result.correct);
         return 'done';
       } catch (err) {
         if (err instanceof ApiRequestError && err.status === 404) {
@@ -249,7 +268,7 @@ export default function App() {
         return 'retry';
       }
     },
-    [explainMissingPlayer],
+    [explainMissingPlayer, applyServerGrading],
   );
 
   /** Re-sends queued answers in order, stopping at the first that still can't get through. */
@@ -306,6 +325,7 @@ export default function App() {
     if (queuedRef.current.size) await flushQueued();
     if (movedOn()) return;
     attemptIdRef.current = null;
+    setCorrection(null);
     setSyncError(null);
     setNotice(null);
     if (session) {
@@ -338,6 +358,7 @@ export default function App() {
   const playQuick = () => {
     if (session) return;
     attemptIdRef.current = null;
+    setCorrection(null);
     setSyncError(null);
     setNotice(null);
     setRound((r) => r + 1);
@@ -450,6 +471,7 @@ export default function App() {
           deck: screen.deck,
           initialAnswers: screen.initialAnswers,
           onAnswer: session && !screen.quick ? reportAnswer : undefined,
+          correction,
           onFinish: (answers: Answer[]) => setScreen({ name: 'results', answers, quick: screen.quick }),
         }
       : null;
