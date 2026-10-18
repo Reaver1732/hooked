@@ -160,10 +160,11 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
   const cls = await findActiveClass(code);
   if (!cls) throw new HttpError(404, 'No class with that code');
 
-  const taken = await db().player.findFirst({
-    where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
-  });
-  if (taken) throw new HttpError(409, 'Someone in this class already has that nickname');
+  // Exact, case-insensitive comparison. (Prisma's insensitive `equals` becomes an unescaped
+  // ILIKE, where _ % and \ in a nickname would act as wildcards.)
+  const taken = await db().$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Player" WHERE "classId" = ${cls.id} AND lower(nickname) = lower(${nickname}) LIMIT 1`;
+  if (taken.length) throw new HttpError(409, 'Someone in this class already has that nickname');
 
   // Take a seat and add the player in one statement. Concurrent joins queue on the
   // Class row lock and re-check "playerCount" < cap against the latest value, so the
@@ -192,13 +193,18 @@ classesRouter.post('/classes/:code/rejoin', rejoinIpLimit, rejoinClassLimit, asy
   const { nickname, rejoinCode } = parse(rejoinBody, req.body);
   const cls = await findActiveClass(code);
   if (!cls) throw new HttpError(404, 'No class with that code');
-  const player = await db().player.findFirst({
-    where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
-  });
+  // Exact, case-insensitive match (see join). If two players ever share a name, the one whose
+  // code matches is the one rejoining.
+  const candidates = await db().$queryRaw<{ id: string; nickname: string; rejoinCodeHash: string | null }[]>`
+    SELECT id, nickname, "rejoinCodeHash" FROM "Player"
+    WHERE "classId" = ${cls.id} AND lower(nickname) = lower(${nickname})`;
+  const player = candidates.find(
+    (p) => p.rejoinCodeHash && hashesEqual(hashRejoinCode(p.id, rejoinCode), p.rejoinCodeHash),
+  );
   // Same answer for an unknown nickname and a wrong code, so a failed rejoin doesn't say which
   // was wrong. Nicknames aren't secret (join reports taken ones and the dashboard lists them);
   // the rejoin code and its guess limits are the protection.
-  if (!player?.rejoinCodeHash || !hashesEqual(hashRejoinCode(player.id, rejoinCode), player.rejoinCodeHash)) {
+  if (!player) {
     throw new HttpError(401, 'That nickname and rejoin code don’t match. Check both, or ask your teacher for a new code.');
   }
   await touchClass(cls.id, { throttleMs: 60_000 });
