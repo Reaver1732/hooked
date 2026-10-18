@@ -109,6 +109,16 @@ export function Situation({ text }: { text: string }) {
   );
 }
 
+/** Shown on the first message with a link in each round, before it's answered. */
+export function LinkTip() {
+  return (
+    <p className="rounded-card bg-raised px-5 py-4 text-small text-ink">
+      <span className="font-bold text-accent">Tip: </span>
+      Before you click, check where a link really goes. Hover over it on a computer, or press and hold it on a phone.
+    </p>
+  );
+}
+
 const ANSWERS = [
   { variant: 'phish', label: 'Phish', meaning: 'Scam', shortcut: 'P', guessedPhish: true, Icon: FishIcon },
   { variant: 'legit', label: 'Legit', meaning: 'Real', shortcut: 'L', guessedPhish: false, Icon: ShieldCheckIcon },

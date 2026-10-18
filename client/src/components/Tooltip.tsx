@@ -1,6 +1,8 @@
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 const VIEWPORT_MARGIN = 8;
+/** How long a finger has to stay down to open the tooltip on a touch screen. */
+const LONG_PRESS_MS = 400;
 
 type Props = {
   /** Shown on hover and keyboard focus; also the trigger's accessible description. */
@@ -11,17 +13,33 @@ type Props = {
 };
 
 /**
- * A focusable trigger with a tooltip above it, shown on hover or keyboard focus and
- * dismissed with Escape. The tooltip shifts sideways to stay on narrow screens.
+ * A focusable trigger with a tooltip above it, shown on hover, keyboard focus, or a long press
+ * on a touch screen (instead of the browser's own menu), and dismissed with Escape or a touch
+ * elsewhere. The tooltip shifts sideways to stay on narrow screens.
  */
 export function TooltipTrigger({ tip, tipClassName = '', triggerClassName, children }: Props) {
   const tooltipId = useId();
   const tipRef = useRef<HTMLSpanElement>(null);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [shift, setShift] = useState(0);
-  const open = (hovered || focused) && !dismissed;
+  const open = (hovered || focused || pressed) && !dismissed;
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const pressTimer = useRef<number | undefined>(undefined);
+  const cancelPress = () => window.clearTimeout(pressTimer.current);
+
+  // A long-press tooltip stays up until the next touch somewhere else.
+  useEffect(() => {
+    if (!pressed) return;
+    const closeOnTouchElsewhere = (e: TouchEvent) => {
+      if (!wrapperRef.current?.contains(e.target as Node)) setPressed(false);
+    };
+    document.addEventListener('touchstart', closeOnTouchElsewhere);
+    return () => document.removeEventListener('touchstart', closeOnTouchElsewhere);
+  }, [pressed]);
+  useEffect(() => cancelPress, []);
 
   useLayoutEffect(() => {
     const el = tipRef.current;
@@ -35,6 +53,7 @@ export function TooltipTrigger({ tip, tipClassName = '', triggerClassName, child
 
   return (
     <span
+      ref={wrapperRef}
       className="relative inline-block max-w-full"
       onMouseEnter={() => {
         setHovered(true);
@@ -53,7 +72,19 @@ export function TooltipTrigger({ tip, tipClassName = '', triggerClassName, child
         onKeyDown={(e) => {
           if (e.key === 'Escape') setDismissed(true);
         }}
-        className={triggerClassName}
+        onTouchStart={() => {
+          cancelPress();
+          pressTimer.current = window.setTimeout(() => {
+            setPressed(true);
+            setDismissed(false);
+          }, LONG_PRESS_MS);
+        }}
+        onTouchEnd={cancelPress}
+        onTouchMove={cancelPress}
+        onTouchCancel={cancelPress}
+        // A long press shows where it goes, not the browser's "open link" menu.
+        onContextMenu={(e) => e.preventDefault()}
+        className={`select-none [-webkit-touch-callout:none] ${triggerClassName}`}
       >
         {children}
       </span>

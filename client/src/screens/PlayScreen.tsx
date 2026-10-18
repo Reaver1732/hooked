@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { MessageView } from '../components/MessageView.tsx';
-import { AnswerButtons, KeysHint, NextButton, Notes, Situation, Verdict } from '../design/parts.tsx';
+import { AnswerButtons, KeysHint, LinkTip, NextButton, Notes, Situation, Verdict } from '../design/parts.tsx';
 import { isCorrect } from '../game/types.ts';
 import { usePlayState, type PlayStateOptions } from '../game/usePlayState.ts';
 
@@ -10,6 +10,8 @@ export function PlayScreen(props: PlayStateOptions) {
   const correctSoFar = answers.filter(isCorrect).length;
   // The situation line is drawn here, so the message card renders without it.
   const card = useMemo(() => ({ ...message, context: undefined }), [message]);
+  // The link-check tip goes on this round's first message that has a link.
+  const firstLinkIndex = useMemo(() => deck.findIndex((m) => m.links.length > 0), [deck]);
 
   return (
     <section aria-labelledby="progress-heading" className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-10">
@@ -35,6 +37,7 @@ export function PlayScreen(props: PlayStateOptions) {
         </div>
 
         {message.context && <Situation text={message.context} />}
+        {index === firstLinkIndex && !answered && <LinkTip />}
 
         {/* The message keeps a neutral system font so it still looks like the app it came from. */}
         <div className="hk-marks font-message text-card-ink">
