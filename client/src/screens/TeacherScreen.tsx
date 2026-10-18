@@ -122,8 +122,9 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
           Your dashboard link
         </h3>
         <p className="mt-3 text-small text-card-ink-muted">
-          <strong className="text-card-ink">Keep this link private.</strong> Anyone with it can see your class’s results and
-          remove students. This browser also remembers the class so you can reopen its dashboard from the start screen; on
+          <strong className="text-card-ink">Keep this link private.</strong> Anyone with it can see your class’s results,
+          remove students, reset a student’s rejoin code (and so play as them), change the passing score, and delete the
+          class. This browser also remembers the class so you can reopen its dashboard from the start screen; on
           a shared computer, press Forget next to it on the start screen when you’re done (the class stays), or use a private window. Don’t project it or share it, and
           save it somewhere safe: it can’t be recovered.
         </p>
