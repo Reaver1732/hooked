@@ -3,7 +3,10 @@
 **Spot the phish before it hooks you.** A phishing-awareness game for grades 6 to 12: students sort real-looking emails, texts, and DMs into phish or legit, then see exactly which red flags they missed. Teachers can run it with a whole class from a QR code and review the results together.
 
 - Live: https://hooked-production-f0a4.up.railway.app
+- Quick round (5 messages): https://hooked-production-f0a4.up.railway.app/?quick=1
 - Demo video: https://youtu.be/-Gbr4SXZgoM
+
+![The reveal after answering, at desktop width: a fake "package on hold" text with three numbered highlights (a $1.99 fee, a 24-hour deadline, and a lookalike link), the "Correct! Nice catch." verdict, and a Red flags list explaining each numbered highlight.](docs/reveal-1280.png)
 
 ## The problem
 
