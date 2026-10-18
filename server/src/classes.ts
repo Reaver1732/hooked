@@ -196,6 +196,8 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
     SELECT ${playerId}, seat.id, ${nickname}, ${hashRejoinCode(playerId, rejoinCode)} FROM seat
     RETURNING id`;
   if (inserted.length === 0) {
+    // No seat: either the class is full, or it was deleted while this request was on its way.
+    if (!(await findActiveClass(code))) throw new HttpError(404, 'This class was closed.');
     throw new HttpError(409, `This class is full (${MAX_PLAYERS_PER_CLASS} players). Ask your teacher to start another class.`);
   }
   // The rejoin code is shown to the student once, here; only its hash is kept.
