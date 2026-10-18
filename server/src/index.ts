@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { apiErrorHandler, classesRouter } from './classes.ts';
 import { startClassCleanup } from './cleanup.ts';
-import { databaseHealth } from './db.ts';
+import { databaseHealth, getPrisma } from './db.ts';
 import { loadLocalEnv } from './env.ts';
 
 loadLocalEnv();
@@ -129,8 +129,24 @@ const onListen = (err?: Error) => {
   databaseHealth(); // start the first check, so health has an answer soon
   startClassCleanup();
 };
-if (HOST) app.listen(PORT, HOST, onListen);
-else app.listen(PORT, onListen);
+const server = HOST ? app.listen(PORT, HOST, onListen) : app.listen(PORT, onListen);
+
+// A deploy sends SIGTERM: stop taking new connections, let open requests finish (an answer
+// being saved, a join), then close the database pool. Anything still open after 10 seconds is
+// cut off. A second Ctrl+C locally exits at once.
+function shutdown(signal: string) {
+  console.log(`${signal}: finishing open requests, then exiting`);
+  setTimeout(() => process.exit(1), 10_000).unref();
+  server.close(async () => {
+    await getPrisma()
+      ?.$disconnect()
+      .catch(() => {});
+    process.exit(0);
+  });
+  server.closeIdleConnections();
+}
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 
 function findUp(start: string, relative: string): string | null {
   for (let dir = start; ; dir = path.dirname(dir)) {
