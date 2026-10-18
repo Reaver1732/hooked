@@ -27,7 +27,7 @@ In a classroom, the teacher creates a class, projects a QR code, and watches a l
 - **Pick up where you left off, without accounts:** this browser remembers which player you are in each class (and, for teachers, the classes created here), so students resume at the first message they haven't answered, and a refresh keeps the tab in its class. On another device, a 6-character rejoin code shown once at joining restores the player.
 - **Password check:** see whether a password has appeared in a data breach without sending it anywhere, plus a random 5-word passphrase suggestion.
 - **Guide for teachers** in the app: a 15 to 20 minute lesson plan, what's stored, and discussion questions.
-- **Accessible:** keyboard shortcuts (P, L, Enter), full keyboard and screen-reader support, WCAG AA contrast, reduced-motion support, and layouts that work down to 375px wide. Checked with axe-core in scripted browser runs during development (those scripts aren't in this repo yet).
+- **Accessible:** keyboard shortcuts (P, L, Enter; the letter keys can be turned off for speech input), full keyboard and screen-reader support, WCAG AA contrast, reduced-motion support, and layouts that work down to 375px wide. Checked with axe-core in scripted browser runs during development (those scripts aren't in this repo yet).
 
 ## How it works
 

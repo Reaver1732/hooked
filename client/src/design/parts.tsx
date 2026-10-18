@@ -92,10 +92,20 @@ export function Key({ children }: { children: ReactNode }) {
   return <kbd className="hk-key">{children}</kbd>;
 }
 
-export function KeysHint() {
+/** The keyboard hint, with the switch for the P and L shortcuts (shown at every size). */
+export function KeysHint({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
-    <p className="hidden items-center gap-2 text-small text-ink-muted sm:flex">
-      Keys <Key>P</Key> phish <Key>L</Key> legit <Key>Enter</Key> next
+    <p className="flex flex-wrap items-center gap-2 text-small text-ink-muted">
+      {on ? (
+        <span className="hidden items-center gap-2 sm:flex">
+          Keys <Key>P</Key> phish <Key>L</Key> legit <Key>Enter</Key> next ·
+        </span>
+      ) : (
+        <span>Letter keys are off ·</span>
+      )}
+      <button type="button" onClick={onToggle} className="hk-link">
+        {on ? 'Turn off letter keys' : 'Turn on'}
+      </button>
     </p>
   );
 }
@@ -160,7 +170,14 @@ const ANSWERS = [
   { variant: 'legit', label: 'Legit', meaning: 'Real', shortcut: 'L', guessedPhish: false, Icon: ShieldCheckIcon },
 ] as const;
 
-export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined; onChoose: (guessedPhish: boolean) => void }) {
+type AnswerButtonsProps = {
+  answer: Answer | undefined;
+  onChoose: (guessedPhish: boolean) => void;
+  /** P and L are on; show them. */
+  shortcuts?: boolean;
+};
+
+export function AnswerButtons({ answer, onChoose, shortcuts = true }: AnswerButtonsProps) {
   return (
     <div role="group" aria-label="Is this message a phish or legit?" className="grid grid-cols-2 gap-4">
       {ANSWERS.map(({ variant, label, meaning, shortcut, guessedPhish, Icon }) => {
@@ -177,7 +194,7 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
             data-state={state}
             data-correct={chosen ? String(!wrongPick) : undefined}
             disabled={answer !== undefined}
-            aria-keyshortcuts={shortcut}
+            aria-keyshortcuts={shortcuts ? shortcut : undefined}
             onClick={() => onChoose(guessedPhish)}
           >
             <span className="flex items-center gap-2">
@@ -195,7 +212,7 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
                   Right answer
                 </span>
               ) : (
-                <span className="hidden sm:inline">Press {shortcut}</span>
+                shortcuts && <span className="hidden sm:inline">Press {shortcut}</span>
               )}
             </span>
           </button>

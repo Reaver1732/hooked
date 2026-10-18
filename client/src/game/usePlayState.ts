@@ -9,6 +9,8 @@ export type PlayStateOptions = {
   onAnswer?: (answer: Answer) => void;
   /** Answers already given to the first messages (resuming a class attempt). */
   initialAnswers?: Answer[];
+  /** Whether P and L answer (they can be turned off; Enter for Next always works). */
+  letterShortcuts?: boolean;
 };
 
 /**
@@ -18,7 +20,7 @@ export type PlayStateOptions = {
 // The play screen's two-column breakpoint (Tailwind's lg, as used in PlayScreen).
 const TWO_COLUMNS = '(min-width: 64rem)';
 
-export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: PlayStateOptions) {
+export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [], letterShortcuts = true }: PlayStateOptions) {
   const [index, setIndex] = useState(initialAnswers.length);
   const [answers, setAnswers] = useState<Answer[]>(initialAnswers);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -67,7 +69,7 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
     function onKeyDown(e: KeyboardEvent) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      if (!answered && (key === 'p' || key === 'l')) {
+      if (letterShortcuts && !answered && (key === 'p' || key === 'l')) {
         e.preventDefault();
         choose(key === 'p');
       } else if (answered && key === 'enter' && !e.repeat) {
@@ -79,7 +81,7 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [answered, choose, next]);
+  }, [answered, choose, next, letterShortcuts]);
 
 
   const verdict = answer && verdictFor(isCorrect(answer), message.isPhish);

@@ -2,11 +2,16 @@ import { useMemo } from 'react';
 import { MessageView } from '../components/MessageView.tsx';
 import { AnswerButtons, KeysHint, LinkTip, NextButton, Notes, Situation, Verdict } from '../design/parts.tsx';
 import { isCorrect } from '../game/types.ts';
+import { useLetterShortcuts } from '../game/shortcuts.ts';
 import { usePlayState, type PlayStateOptions } from '../game/usePlayState.ts';
 
 export function PlayScreen(props: PlayStateOptions) {
   const { deck } = props;
-  const { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdictRef, verdict } = usePlayState(props);
+  const [letterShortcuts, setLetterShortcuts] = useLetterShortcuts();
+  const { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdictRef, verdict } = usePlayState({
+    ...props,
+    letterShortcuts,
+  });
   const correctSoFar = answers.filter(isCorrect).length;
   // The situation line is drawn here, so the message card renders without it.
   const card = useMemo(() => ({ ...message, context: undefined }), [message]);
@@ -53,8 +58,8 @@ export function PlayScreen(props: PlayStateOptions) {
       </div>
 
       <div className="flex flex-col gap-5">
-        <AnswerButtons answer={answer} onChoose={choose} />
-        <KeysHint />
+        <AnswerButtons answer={answer} onChoose={choose} shortcuts={letterShortcuts} />
+        <KeysHint on={letterShortcuts} onToggle={() => setLetterShortcuts(!letterShortcuts)} />
         <Verdict verdict={verdict} boxRef={verdictRef} />
         {answered && (
           <>
