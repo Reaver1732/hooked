@@ -87,10 +87,21 @@ app.use('/api', apiErrorHandler);
 // Compiled output sits deeper (dist/server/src) than the source, so search upward.
 const clientDist = findUp(import.meta.dirname, path.join('client', 'dist'));
 if (clientDist) {
-  app.use(express.static(clientDist));
+  // Vite puts a content hash in every /assets file name, so those files never change and can be
+  // cached for a year. index.html is checked on every visit, so a deploy is picked up at once.
+  const assetsDir = path.join(clientDist, 'assets') + path.sep;
+  const NO_CACHE = { 'Cache-Control': 'no-cache' };
+  app.use(
+    express.static(clientDist, {
+      setHeaders: (res, filePath) => {
+        if (filePath.startsWith(assetsDir)) res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        else if (path.basename(filePath) === 'index.html') res.set(NO_CACHE);
+      },
+    }),
+  );
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
-    res.sendFile(path.join(clientDist, 'index.html'));
+    res.sendFile(path.join(clientDist, 'index.html'), { headers: NO_CACHE });
   });
 }
 
