@@ -34,8 +34,8 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         Each student sorts the messages into <strong>Phish</strong> or <strong>Legit</strong> and sees the red flags (or
-        the signs it’s safe) after every answer. Fast finishers can play again (their best run counts) or try the password
-        check. If a student closes the tab, the join link picks up where they left off; on another device they use the
+        the signs it’s safe) after every answer. Fast finishers can play again or try the password check. Your dashboard
+        shows each student’s first score (before they’d seen any answers) and their best; Passed uses the best. If a student closes the tab, the join link picks up where they left off; on another device they use the
         rejoin code they were shown when they joined (you can reset it from the dashboard).
       </>
     ),
@@ -46,8 +46,9 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         Use <strong>Show QR code</strong> for latecomers. Then project the <strong>Most-missed red flags</strong> and{' '}
-        <strong>Per message</strong> sections and talk through the messages your class found hardest. Set a passing
-        score if you like (80% by default) and use <strong>Export CSV</strong> to keep a record. Before projecting, switch to full screen (F11, or the full-screen key on
+        <strong>Per message</strong> sections and talk through the messages your class found hardest. Both use each
+        student’s first run, so replays don’t hide what fooled people. Set a passing score if you like (80% by default,
+        checked against each student’s best run) and use <strong>Export CSV</strong> to keep a record. Before projecting, switch to full screen (F11, or the full-screen key on
         a Chromebook) so the private dashboard link in the address bar isn’t shown, and scroll past the player list if
         you’d rather not show individual scores.
       </>
