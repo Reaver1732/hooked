@@ -114,6 +114,10 @@ function db(): PrismaClient {
 const isUniqueViolation = (err: unknown) =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 
+/** A row this write points at was deleted meanwhile (a foreign key, or a missing record). */
+const isGoneRow = (err: unknown) =>
+  err instanceof Prisma.PrismaClientKnownRequestError && (err.code === 'P2003' || err.code === 'P2025');
+
 // ---- Secrets ----------------------------------------------------------------------
 
 function newCode(length: number): string {
@@ -348,9 +352,13 @@ classesRouter.post('/answers', validateAnswer, answerLimit, async (_req, res) =>
     await db().answer.create({ data: { playerId, attemptId, messageId, choice, correct } });
     result = { correct, alreadyAnswered: false };
   } catch (err) {
+    // Removed from the class, or the class deleted, after the checks above: the same 404 as
+    // when that happened first, so the app explains it instead of showing a server error.
+    if (isGoneRow(err)) throw new HttpError(404, PLAYER_NOT_FOUND);
     if (!isUniqueViolation(err)) throw err;
     // First answer per message within an attempt counts; report how it was graded.
-    const existing = await db().answer.findUniqueOrThrow({ where: { attemptId_messageId: { attemptId, messageId } } });
+    const existing = await db().answer.findUnique({ where: { attemptId_messageId: { attemptId, messageId } } });
+    if (!existing) throw new HttpError(404, PLAYER_NOT_FOUND);
     result = { correct: existing.correct, alreadyAnswered: true };
   }
   // The attempt is finished once every message in the current set has an answer.
