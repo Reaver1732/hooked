@@ -40,12 +40,14 @@ type Screen =
   | { name: 'password'; back: GameScreen }
   | { name: 'join'; initialCode?: string }
   | { name: 'teacher' }
-  | { name: 'dashboard'; credentials: TeacherCredentials }
+  // openedWith: the key the dashboard was opened with. Opening another link (say, a corrected
+  // one after a wrong key) starts the dashboard afresh; "Get a new link" doesn't.
+  | { name: 'dashboard'; credentials: TeacherCredentials; openedWith: string }
   | { name: 'guide'; back: Screen };
 
 function initialScreen(): Screen {
   const credentials = takeDashboardHash();
-  if (credentials) return { name: 'dashboard', credentials };
+  if (credentials) return { name: 'dashboard', credentials, openedWith: credentials.teacherKey };
   if (window.location.hash === TEACHER_GUIDE_HASH) return { name: 'guide', back: { name: 'start' } };
 
   // A join link or QR code: <site>/?join=CODE
@@ -175,7 +177,7 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => {
       const credentials = takeDashboardHash();
-      if (credentials) setScreen({ name: 'dashboard', credentials });
+      if (credentials) setScreen({ name: 'dashboard', credentials, openedWith: credentials.teacherKey });
       else if (window.location.hash === TEACHER_GUIDE_HASH) setScreen((s) => (s.name === 'guide' ? s : { name: 'guide', back: s }));
       // The hash went away (browser Back): leave the dashboard or the guide.
       else setScreen((s) => (s.name === 'dashboard' ? { name: 'start' } : s.name === 'guide' ? s.back : s));
@@ -497,7 +499,7 @@ export default function App() {
         )}
         {screen.name === 'dashboard' && (
           <DashboardScreen
-            key={screen.credentials.code}
+            key={`${screen.credentials.code}:${screen.openedWith}`}
             credentials={screen.credentials}
             onGone={() => {
               forgetClass(screen.credentials.code);
@@ -507,7 +509,7 @@ export default function App() {
               const saved = storedClasses().find((c) => c.code === credentials.code);
               if (saved) rememberClass({ ...saved, teacherKey: credentials.teacherKey });
               rememberDashboardKey(credentials);
-              setScreen({ name: 'dashboard', credentials });
+              setScreen((s) => (s.name === 'dashboard' ? { ...s, credentials } : s));
             }}
           />
         )}
