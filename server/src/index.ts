@@ -94,7 +94,14 @@ if (clientDist) {
   });
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, (err) => {
+  // Express 5 hands listen errors (port in use, no permission) to this callback instead of
+  // throwing; without this check a clash logged "listening" and exited with status 0.
+  if (err) {
+    console.error(`Server couldn’t listen on port ${PORT}: ${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
   console.log(`Server listening on http://localhost:${PORT}`);
   startClassCleanup();
 });
