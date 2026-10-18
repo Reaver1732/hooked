@@ -18,6 +18,33 @@ const PORT = Number(process.env.PORT) || 3001;
 // trusting 1 would make every client look like the edge and share one rate limit.
 // Locally nothing is trusted. RAILWAY_ENVIRONMENT_ID is injected by Railway at runtime.
 app.set('trust proxy', process.env.RAILWAY_ENVIRONMENT_ID ? 2 : false);
+app.disable('x-powered-by');
+
+// Security headers on every response. The CSP allows only this site's own scripts,
+// styles and fonts, data: images (the QR code), and the Pwned Passwords API.
+// React sets inline styles through the DOM, which CSP allows without 'unsafe-inline'.
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self' https://api.pwnedpasswords.com",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; '),
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Strict-Transport-Security': 'max-age=31536000',
+};
+app.use((_req, res, next) => {
+  res.set(SECURITY_HEADERS);
+  next();
+});
 
 app.use(compression());
 
