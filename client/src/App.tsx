@@ -208,6 +208,9 @@ export default function App() {
     onStart: play,
     onJoinClass: () => setScreen({ name: 'join' }),
     onLeaveClass: () => {
+      // Forget the player too, so the next person on a shared browser isn't offered
+      // "Continue as" this student. Coming back on this device needs the rejoin code.
+      if (session) forgetPlayer(session.code);
       setSession(null);
       setNotice(null);
       setRejoinCode(null);
