@@ -66,7 +66,6 @@ export function DashboardScreen({ credentials, onGone }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [summary, setSummary] = useState<ClassSummary | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [keptOnLoad, setKeptOnLoad] = useState(false);
   const [keeping, setKeeping] = useState(false);
   const [copied, setCopied] = useState(false);
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
@@ -94,26 +93,27 @@ export function DashboardScreen({ credentials, onGone }: Props) {
 
   useEffect(() => headingRef.current?.focus({ preventScroll: true }), []);
 
-  // Opening the dashboard counts as activity, once. The 5-second refreshes below don't.
-  useEffect(() => {
-    let cancelled = false;
-    api.keepClass(code, teacherKey).then(
-      () => !cancelled && setKeptOnLoad(true),
-      (err) => !cancelled && handleError(err, 'Couldn’t load the class.'),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [code, teacherKey, handleError]);
+  // Opening the dashboard counts as activity, once: the first keep call that succeeds. The
+  // 5-second refreshes don't. A keep that fails (network, server error) is retried on the next
+  // tick, so one blip doesn't leave the dashboard stuck on "Loading…".
+  const keptRef = useRef(false);
 
-  // Poll every 5 s, one request at a time, and skip while the tab is hidden.
-  const stopped = !keptOnLoad || gone !== null || (error?.fatal ?? false);
+  // Poll every 5 s, one request at a time, and skip the refresh while the tab is hidden.
+  const stopped = gone !== null || (error?.fatal ?? false);
   useEffect(() => {
     if (stopped) return;
     let cancelled = false;
     let timer: number | undefined;
     const tick = async () => {
-      if (document.visibilityState === 'visible') await refresh();
+      if (!keptRef.current) {
+        try {
+          await api.keepClass(code, teacherKey);
+          keptRef.current = true;
+        } catch (err) {
+          if (!cancelled) handleError(err, 'Couldn’t load the class.');
+        }
+      }
+      if (keptRef.current && !cancelled && document.visibilityState === 'visible') await refresh();
       if (!cancelled) timer = window.setTimeout(tick, REFRESH_MS);
     };
     void tick();
@@ -121,7 +121,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [refresh, stopped]);
+  }, [refresh, stopped, code, teacherKey, handleError]);
 
   // Once the class is gone the key in the address bar is useless; drop it, and forget it here.
   useEffect(() => {
