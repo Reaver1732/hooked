@@ -79,6 +79,24 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 type AnswerBody = Parameters<typeof api.submitAnswer>[0];
 
+/** Network errors and server errors may pass; anything else (404, 429, …) won't on a retry. */
+const isRetryable = (err: unknown) => !(err instanceof ApiRequestError) || err.status === null || err.status >= 500;
+
+/**
+ * Starts (or resumes) a class attempt, trying again twice (after 0.5 s and 1 s) on network or
+ * server errors, so one blip doesn't turn the whole round into an uncounted solo round.
+ */
+async function startAttemptWithRetry(playerId: string) {
+  for (let tryNo = 0; ; tryNo++) {
+    try {
+      return await api.startAttempt(playerId);
+    } catch (err) {
+      if (tryNo >= 2 || !isRetryable(err)) throw err;
+      await sleep(500 * 2 ** tryNo);
+    }
+  }
+}
+
 /** Shown while answers are waiting to be re-sent. Cleared once they all get through. */
 const QUEUED_MESSAGE = 'Some answers haven’t reached your class yet. Keep this page open and they’ll be sent.';
 /** How often queued answers are re-sent. */
@@ -248,7 +266,7 @@ export default function App() {
     if (session) {
       try {
         // Resumes the unfinished attempt (if any) or starts a new one.
-        const attempt = await api.startAttempt(session.playerId);
+        const attempt = await startAttemptWithRetry(session.playerId);
         attemptIdRef.current = attempt.attemptId;
         initialAnswers = resumedAnswers(attempt.answers);
       } catch (err) {
