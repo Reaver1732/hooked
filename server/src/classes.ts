@@ -145,7 +145,7 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
   const taken = await db().player.findFirst({
     where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
   });
-  if (taken) throw new HttpError(409, 'Someone in this class already has that nickname');
+  if (taken) throw new HttpError(409, 'That nickname is taken. If it’s you, use your rejoin code below. If not, pick another nickname.');
 
   // Take a seat and add the player in one statement. Concurrent joins queue on the
   // Class row lock and re-check "playerCount" < cap against the latest value, so the

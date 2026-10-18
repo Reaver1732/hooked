@@ -28,9 +28,9 @@ function titleFor(score: number, total: number): string {
 
 // Calm, practical steps for after a real phish; shown on every results screen.
 const HOOKED_STEPS: [string, string][] = [
-  ['Tell a trusted adult or your school’s IT team right away.', 'They’ve seen this before and can help.'],
-  ['Change that password', 'by going to the real site or app yourself, not through the message.'],
-  ['Turn on two-step verification', 'so a password alone isn’t enough to get in.'],
+  ['Tell a parent, teacher, or your school’s tech help team', 'right away.'],
+  ['Typed a password into a fake page? Change it.', 'Open the real app or website yourself, not the link in the message.'],
+  ['Turn on two-step verification.', 'Then logging in also needs a code from your phone, so a stolen password isn’t enough.'],
   ['Used that password anywhere else?', 'Change it there too.'],
 ];
 

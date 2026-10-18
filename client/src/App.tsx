@@ -389,7 +389,8 @@ export default function App() {
         )}
         {screen.name === 'dashboard' && (
           <DashboardScreen
-            key={screen.credentials.code}
+            // Keyed by the key too, so opening a corrected link starts the dashboard afresh.
+            key={`${screen.credentials.code}:${screen.credentials.teacherKey}`}
             credentials={screen.credentials}
             onGone={() => forgetClass(screen.credentials.code)}
           />

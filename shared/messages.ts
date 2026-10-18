@@ -299,7 +299,7 @@ export const messages: Message[] = [
       {
         match: "helpdesk@harborpines-it.com",
         type: "lookalike-sender",
-        note: "Your school's IT team uses @harborpinesschools.org like everyone else at school.",
+        note: "Your school's tech team uses @harborpinesschools.org like everyone else at school.",
       },
       {
         match: "older files may be deleted",
@@ -409,7 +409,7 @@ export const messages: Message[] = [
       {
         match: "clipz.video/v/8Hq2",
         type: "mismatched-link",
-        note: "It looks like a video link, but it goes to login-verify.co. A video site that makes you log in first is a trap.",
+        note: "It looks like a video link, but it goes to login-verify.co. A video link in a DM that asks you to log in is a common trick to steal your password.",
       },
     ],
   },
@@ -437,7 +437,7 @@ export const messages: Message[] = [
     highlights: [
       {
         match: "docs-noreply@harborpinesschools.org",
-        note: "Sent from the school's real domain.",
+        note: "Sent from the school's real address. It ends in @harborpinesschools.org.",
       },
       {
         match: "Lab 4 Instructions",
@@ -475,7 +475,7 @@ export const messages: Message[] = [
       {
         match: "Your_Photos_Preview.zip",
         type: "unexpected-attachment",
-        note: "Photo previews don't come as .zip files. Surprise attachments, especially .zip, .exe, or .html, can install malware or open fake sign-in pages.",
+        note: "Photo previews don't come as .zip files. Surprise attachments, especially .zip, .exe, or .html, can install harmful programs (malware) or open fake sign-in pages.",
       },
       {
         match: "Special price ends tonight at midnight.",
@@ -508,7 +508,7 @@ export const messages: Message[] = [
         match:
           "send us your full name, address, phone number, and a photo of your ID",
         type: "asks-for-credentials",
-        note: "Real employers don't hire through DMs or ask for your ID there. This is how identity theft starts.",
+        note: "Real employers don't hire through DMs or ask for your ID there. Scammers use info like this to pretend to be you. That's called identity theft.",
       },
       {
         match: "Spots fill fast!",

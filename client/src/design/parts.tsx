@@ -274,9 +274,12 @@ export function RejoinNotice({ code, headingRef, onDismiss }: { code: string; he
           {code}
         </span>
       </h2>
-      <p className="mt-1 text-small text-card-ink-muted">Write it down to keep playing on another device. It’s shown only once.</p>
+      <p className="mt-1 text-small text-card-ink-muted">
+        Save this code: write it down or take a photo. You’ll need it to switch devices or to come back after leaving. We
+        can only show it once. Lost it? Your teacher can make a new one.
+      </p>
       <button type="button" onClick={onDismiss} className={`${button('secondary', 'sm')} mt-4`}>
-        I wrote it down
+        I saved it
       </button>
     </section>
   );

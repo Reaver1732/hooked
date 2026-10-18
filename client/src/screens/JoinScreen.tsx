@@ -36,6 +36,9 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
   const [rejoinCode, setRejoinCode] = useState('');
   const [saved, setSaved] = useState<StoredPlayer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // "No such class" belongs to the Class code field, so it's shown there, not under Nickname.
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const codeErrorId = useId();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -78,11 +81,16 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
   async function run(action: () => Promise<void>, fallback: string) {
     if (busy) return; // not `disabled` while busy: that would drop keyboard focus
     setError(null);
+    setCodeError(null);
     setBusy(true);
     try {
       await action();
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : fallback);
+      if (err instanceof ApiRequestError && err.status === 404) {
+        setCodeError(`We couldn’t find class ${code}. Check the code on the board and try again.`);
+      } else {
+        setError(err instanceof ApiRequestError ? err.message : fallback);
+      }
       setBusy(false);
     }
   }
@@ -125,15 +133,28 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
         ref={ref}
         id={codeId}
         value={code}
-        onChange={(e) => setCode(cleanCode(e.target.value, CLASS_CODE_LENGTH))}
+        onChange={(e) => {
+          setCode(cleanCode(e.target.value, CLASS_CODE_LENGTH));
+          setCodeError(null);
+        }}
         required
         minLength={CLASS_CODE_LENGTH}
         autoComplete="off"
         autoCapitalize="characters"
         spellCheck={false}
-        aria-describedby={describedBy}
+        aria-invalid={codeError ? true : undefined}
+        aria-describedby={[codeError ? codeErrorId : '', describedBy ?? ''].join(' ').trim() || undefined}
         className={CODE_INPUT}
       />
+      <div aria-live="polite">
+        {codeError && (
+          <div className="mt-2">
+            <Notice tone="error" id={codeErrorId}>
+              {codeError}
+            </Notice>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -247,15 +268,16 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
       )}
 
       <p className="text-small text-ink-muted">
-        {mode === 'join' ? 'Started on another device? ' : 'First time in this class? '}
+        {mode === 'join' ? 'Joined this class before? ' : 'First time in this class? '}
         <TextButton
           onClick={() => {
             setError(null);
+            setCodeError(null);
             setMode(mode === 'join' ? 'rejoin' : 'join');
           }}
           className="text-ink"
         >
-          {mode === 'join' ? 'Rejoin with your code' : 'Join as a new player'}
+          {mode === 'join' ? 'Use your rejoin code' : 'Join as a new player'}
         </TextButton>
       </p>
     </section>

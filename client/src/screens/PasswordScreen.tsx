@@ -75,7 +75,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
   return (
     <section aria-labelledby="password-heading" className="flex flex-col gap-6">
       <ScreenHeader id="password-heading" headingRef={headingRef} icon={<LockIcon className="size-7" />} title="Has this password leaked?" onBack={onBack}>
-        Checks a password against passwords exposed in real data breaches, without sending the password anywhere.
+        See if a password has leaked online after a website was hacked. Your password never leaves your device.
       </ScreenHeader>
 
       <form onSubmit={runCheck} className="hk-card flex flex-col gap-5 p-5 sm:p-6">
@@ -145,8 +145,8 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
             <p className="hk-reveal-pop flex items-start gap-3 rounded-card bg-bad px-5 py-4 text-on-bad">
               <XCircleIcon className="mt-0.5 size-7 shrink-0" />
               <span>
-                <strong className="hk-display block text-title">Seen in data breaches {check.breachCount.toLocaleString()} times.</strong>
-                Attackers try these first. Don’t use it.
+                <strong className="hk-display block text-title">Found {check.breachCount.toLocaleString()} times in leaked password lists.</strong>
+                Hackers try leaked passwords first. Don’t use this one.
               </span>
             </p>
           ) : (
@@ -160,7 +160,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
           ))}
         {check.status === 'error' && (
           <Notice tone="error">
-            <strong>Couldn’t reach the breach database.</strong> Check your connection and try again in a moment.
+            <strong>Couldn’t reach the leaked-password list.</strong> Your school’s network may block it. The game still works.
           </Notice>
         )}
       </div>
@@ -189,11 +189,11 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
       )}
 
       <p className="text-center text-micro text-ink-muted">
-        Breach data from the{' '}
+        Leaked-password data from{' '}
         <a href="https://haveibeenpwned.com/Passwords" target="_blank" rel="noopener noreferrer" className="hk-link text-ink">
           Have I Been Pwned
-        </a>{' '}
-        Pwned Passwords API. Passphrase words from the{' '}
+        </a>
+        . Passphrase words from the{' '}
         <a href="https://www.eff.org/dice" target="_blank" rel="noopener noreferrer" className="hk-link text-ink">
           EFF Short Wordlist
         </a>
@@ -217,7 +217,7 @@ function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> 
       <p className="mt-1 font-code text-title font-bold tracking-wider">{prefix}</p>
 
       <p className="mt-4 text-small text-card-ink-muted">
-        The password’s SHA-1 hash (the other {restLength} characters never leave this device):
+        Your device turned the password into a scrambled code called a hash. Only its first 5 characters were sent:
       </p>
       <p className="mt-1 font-code text-small break-all">
         <mark className="rounded-tight bg-primary px-0.5 text-on-primary">{prefix}</mark>
@@ -238,10 +238,10 @@ function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> 
 
       <p className="mt-4 text-small text-card-ink-muted">
         {check.status === 'done'
-          ? `The service sent back ${check.candidates.toLocaleString()} hashes that start with ${prefix}. This device compared them to the rest of the hash; the password itself never left.`
+          ? `Have I Been Pwned sent back ${check.candidates.toLocaleString()} codes that start with ${prefix}. Your device checked them itself. Your password never left your device.`
           : check.status === 'checking'
-            ? 'Waiting for the list of hashes that share this prefix…'
-            : 'At most these 5 characters were sent. The password itself never left.'}
+            ? 'Checking the list…'
+            : 'At most these 5 characters were sent. Your password never left your device.'}
       </p>
     </section>
   );

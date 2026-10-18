@@ -2,10 +2,11 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type R
 import { CLASS_IDLE_DAYS, type ClassSummary, type Score } from '../../../shared/api.ts';
 import { FLAG_LABELS } from '../../../shared/flags.ts';
 import { api, ApiRequestError } from '../class/api.ts';
-import { dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
+import { dashboardHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
+import { storedClasses } from '../class/storage.ts';
 import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { ClockIcon, FlagIcon, FishIcon, LockIcon, TrashIcon, UsersIcon } from '../components/icons.tsx';
-import { button, FullScreenButton, IconTile, Notice, TextButton } from '../design/parts.tsx';
+import { button, FullScreenButton, IconTile, Notice, SavedClasses, TextButton } from '../design/parts.tsx';
 
 const REFRESH_MS = 5000;
 const WARN_MS = 24 * 60 * 60 * 1000;
@@ -207,6 +208,39 @@ export function DashboardScreen({ credentials, onGone }: Props) {
     } catch (err) {
       handleError(err, 'Couldn’t remove that player.');
     }
+  }
+
+  // A wrong or cut-short key: one clear card instead of "Loading…" next to a raw error, with the
+  // classes this browser knows about, since one of those is usually what the teacher wanted.
+  if (error?.fatal && !summary) {
+    const saved = storedClasses();
+    return (
+      <section aria-labelledby="dashboard-heading" className="flex flex-col gap-6">
+        <div className="hk-card flex flex-col items-start gap-4 p-6 sm:p-8">
+          <IconTile tone="mark" size="lg">
+            <LockIcon className="size-7" />
+          </IconTile>
+          <h2 id="dashboard-heading" ref={headingRef} tabIndex={-1} className="hk-display text-title outline-none">
+            This dashboard link doesn’t work
+          </h2>
+          <p className="text-card-ink-muted">
+            Check that you copied the whole link. Dashboard links are long, and one missing character breaks them.
+            {saved.length > 0 && ' Or open one of the classes saved on this device below.'}
+          </p>
+          <a href="/" className={button('primary')}>
+            Back to Hooked
+          </a>
+        </div>
+        {saved.length > 0 && (
+          <SavedClasses
+            classes={saved}
+            onOpen={(c) => {
+              window.location.hash = dashboardHash(c);
+            }}
+          />
+        )}
+      </section>
+    );
   }
 
   if (gone) {
