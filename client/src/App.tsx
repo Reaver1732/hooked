@@ -165,16 +165,25 @@ export default function App() {
     setNotice('This class was closed. You can keep playing on your own.');
   }, []);
 
-  /** After a 404 for this player: tell "class closed" apart from "you were removed". */
+  /**
+   * After a 404 for this player, the player is gone either way, so leave the class: nothing more
+   * is sent for this round, and the header and results stop naming the class. The status
+   * check only picks the wording ("class closed" or "you were removed").
+   */
   const explainMissingPlayer = useCallback(
     async (code: string, removedMessage: string) => {
+      attemptIdRef.current = null;
       try {
         await api.classStatus(code);
-        setSyncError(removedMessage);
       } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 404) closeSession(code);
-        else setSyncError(removedMessage);
+        if (err instanceof ApiRequestError && err.status === 404) {
+          closeSession(code);
+          return;
+        }
       }
+      forgetPlayer(code);
+      setSession(null);
+      setSyncError(removedMessage);
     },
     [closeSession],
   );
@@ -245,8 +254,6 @@ export default function App() {
       } catch (err) {
         if (err instanceof ApiRequestError && err.status === 404) {
           await explainMissingPlayer(session.code, 'You’re no longer in this class. Join again, or keep playing on your own.');
-          forgetPlayer(session.code);
-          setSession(null);
           return;
         }
         // The server said no for a reason (e.g. too many requests): say what it said and stay
