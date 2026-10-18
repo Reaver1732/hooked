@@ -133,6 +133,8 @@ export default function App() {
    */
   const queuedRef = useRef(new Map<string, { code: string; body: AnswerBody }>());
   const flushingRef = useRef(false);
+  /** Answers being sent right now, so the next round can wait for them. */
+  const inFlightRef = useRef(new Set<Promise<void>>());
   /** Answers still being sent to the class (Results waits on these before saying they arrived). */
   const [pendingSends, setPendingSends] = useState(0);
   /** The class attempt answers are reported to (set when a class round starts). */
@@ -258,7 +260,9 @@ export default function App() {
 
   const play = async () => {
     let initialAnswers: Answer[] = [];
-    // Answers still waiting from the last round go first, so it can finish before the next starts.
+    // Let the last round's answers land first (in flight, then queued), so that round can
+    // finish before the next one starts; otherwise the server would resume the old attempt.
+    await Promise.allSettled([...inFlightRef.current]);
     if (queuedRef.current.size) await flushQueued();
     attemptIdRef.current = null;
     setSyncError(null);
@@ -324,7 +328,7 @@ export default function App() {
   };
 
   // Report each answer to the class. The server grades it; we only send the choice.
-  const reportAnswer = useCallback(
+  const sendAnswer = useCallback(
     async (answer: Answer) => {
       if (!session) return;
       const attemptId = attemptIdRef.current;
@@ -350,6 +354,15 @@ export default function App() {
       }
     },
     [session, trySend],
+  );
+  const reportAnswer = useCallback(
+    (answer: Answer) => {
+      const sending = sendAnswer(answer);
+      inFlightRef.current.add(sending);
+      void sending.finally(() => inFlightRef.current.delete(sending));
+      return sending;
+    },
+    [sendAnswer],
   );
 
   const inGame = screen.name === 'start' || screen.name === 'play' || screen.name === 'results';
