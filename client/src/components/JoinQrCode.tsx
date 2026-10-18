@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * so only the teacher screen pays for it. The link text is always shown alongside, so a
  * failed load still leaves students a way in.
  */
-export function JoinQrCode({ url }: { url: string }) {
+export function JoinQrCode({ url, sizeClass = 'max-w-72 sm:max-w-80' }: { url: string; sizeClass?: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -26,7 +26,7 @@ export function JoinQrCode({ url }: { url: string }) {
 
   if (failed) return <p className="text-sm text-slate-600">Couldn’t draw the QR code. Students can use the link below.</p>;
   return (
-    <div className="mx-auto aspect-square w-full max-w-72 sm:max-w-80">
+    <div className={`mx-auto aspect-square w-full ${sizeClass}`}>
       {src && <img src={src} alt={`QR code for ${url}`} className="size-full rounded-lg [image-rendering:pixelated]" />}
     </div>
   );

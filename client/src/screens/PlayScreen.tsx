@@ -11,15 +11,17 @@ type Props = {
   onFinish: (answers: Answer[]) => void;
   /** Called once per message when it's first answered (used to report to a class). */
   onAnswer?: (answer: Answer) => void;
+  /** Answers already given to the first messages (resuming a class attempt). */
+  initialAnswers?: Answer[];
 };
 
-export function PlayScreen({ deck, onFinish, onAnswer }: Props) {
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Answer[]>([]);
+export function PlayScreen({ deck, onFinish, onAnswer, initialAnswers = [] }: Props) {
+  const [index, setIndex] = useState(initialAnswers.length);
+  const [answers, setAnswers] = useState<Answer[]>(initialAnswers);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   // Guards against two answers for one message (e.g. P then L before a re-render).
-  const lastAnsweredRef = useRef(-1);
+  const lastAnsweredRef = useRef(initialAnswers.length - 1);
 
   const message = deck[index];
   const answer: Answer | undefined = answers[index];
@@ -87,8 +89,12 @@ export function PlayScreen({ deck, onFinish, onAnswer }: Props) {
             <kbd className="font-sans font-bold">Enter</kbd> next
           </p>
         </div>
-        {/* One segment per message: green/red once answered, light blue for the current one. */}
-        <ol aria-hidden className="mt-2 flex gap-1">
+        {/* Phones: one continuous bar (15 segments get too thin at 375px). */}
+        <div aria-hidden className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 sm:hidden">
+          <div className="h-full rounded-full bg-sky-700" style={{ width: `${(answers.length / deck.length) * 100}%` }} />
+        </div>
+        {/* Wider screens: one segment per message, green/red once answered, light blue for the current one. */}
+        <ol aria-hidden className="mt-2 hidden gap-1 sm:flex">
           {deck.map((m, i) => {
             const a = answers[i];
             const color = a ? (isCorrect(a) ? 'bg-emerald-600' : 'bg-red-600') : i === index ? 'bg-sky-400' : 'bg-slate-200';

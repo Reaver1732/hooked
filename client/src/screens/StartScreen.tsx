@@ -1,6 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { api, ApiRequestError } from '../class/api.ts';
+import type { TeacherCredentials } from '../class/dashboardLink.ts';
+import { forgetClass, storedClasses, type StoredClass } from '../class/storage.ts';
 import { button, CARD, FOCUS_RING, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
-import { FishIcon, LockIcon, UsersIcon } from '../components/icons.tsx';
+import { ChalkboardIcon, FishIcon, LockIcon, UsersIcon } from '../components/icons.tsx';
 import { Logo } from '../components/Logo.tsx';
 import type { ClassSession } from './JoinScreen.tsx';
 
@@ -12,11 +15,40 @@ type Props = {
   onTeacher: () => void;
   onTeacherGuide: () => void;
   onPasswordCheck: () => void;
+  /** A new player's rejoin code, shown once until dismissed. */
+  rejoinCode: string | null;
+  onDismissRejoinCode: () => void;
+  onOpenDashboard: (credentials: TeacherCredentials) => void;
 };
 
-export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck }: Props) {
+export function StartScreen(props: Props) {
+  const { session, onStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck } = props;
+  const { rejoinCode, onDismissRejoinCode, onOpenDashboard } = props;
   const joinRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const rejoinRef = useRef<HTMLHeadingElement>(null);
   const hadSession = useRef(session !== null);
+  const [classes, setClasses] = useState<StoredClass[]>(storedClasses);
+
+  // Classes created on this browser: drop any the server says are gone (deleted or expired).
+  useEffect(() => {
+    let cancelled = false;
+    for (const { code } of storedClasses()) {
+      api.classStatus(code).catch((err) => {
+        if (cancelled || !(err instanceof ApiRequestError) || err.status !== 404) return;
+        forgetClass(code);
+        setClasses((list) => list.filter((c) => c.code !== code));
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // A fresh rejoin code is the first thing to read (and hear) after joining.
+  useEffect(() => {
+    if (rejoinCode) rejoinRef.current?.focus();
+  }, [rejoinCode]);
 
   // "Leave class" removes itself, so hand focus to the "Join a class" button that replaces it.
   useEffect(() => {
@@ -26,8 +58,31 @@ export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTea
 
   return (
     <section className="flex flex-col gap-4">
+      {rejoinCode && (
+        <section aria-labelledby="rejoin-code-heading" className="rounded-2xl border-2 border-amber-500 bg-amber-50 p-5">
+          <h2 id="rejoin-code-heading" ref={rejoinRef} tabIndex={-1} className="text-lg font-bold text-amber-950 outline-none">
+            Your rejoin code: <span className="sr-only">{rejoinCode.split('').join(' ')}</span>
+            <span aria-hidden className="ml-1 font-mono text-2xl tracking-[0.2em]">
+              {rejoinCode}
+            </span>
+          </h2>
+          <p className="mt-1 text-sm text-amber-950">
+            Write it down to keep playing on another device. It’s shown only once.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              onDismissRejoinCode();
+              headingRef.current?.focus();
+            }}
+            className={`${button('secondary', 'sm')} mt-3`}
+          >
+            I wrote it down
+          </button>
+        </section>
+      )}
       <div className="relative overflow-hidden rounded-3xl bg-linear-to-b from-sky-900 via-sky-800 to-cyan-800 px-6 pt-10 pb-28 text-white shadow-lg sm:px-10 sm:pt-12">
-        <h1 tabIndex={-1} className="outline-none">
+        <h1 ref={headingRef} tabIndex={-1} className="outline-none">
           <Logo size="lg" tone="dark" bob />
         </h1>
         <p className="mt-5 max-w-md text-2xl leading-snug font-bold">Spot the phish before it hooks you.</p>
@@ -74,6 +129,37 @@ export function StartScreen({ session, onStart, onJoinClass, onLeaveClass, onTea
           </button>
         </OptionCard>
       </div>
+
+      {classes.length > 0 && (
+        <section aria-labelledby="my-classes-heading" className={`${CARD} p-5`}>
+          <h2 id="my-classes-heading" className="flex items-center gap-2 text-lg font-bold">
+            <span className="grid size-8 place-items-center rounded-lg bg-sky-100 text-sky-800">
+              <ChalkboardIcon className="size-5" />
+            </span>
+            Your classes on this device
+          </h2>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {classes.map((c) => (
+              <li key={c.code} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                <span>
+                  <span className="font-mono text-lg font-bold tracking-wider text-sky-900">{c.code}</span>
+                  <span className="ml-2 text-sm text-slate-700">
+                    created {new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onOpenDashboard({ code: c.code, teacherKey: c.teacherKey })}
+                  aria-label={`Open dashboard for class ${c.code}`}
+                  className={button('secondary', 'sm')}
+                >
+                  Open dashboard
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <p className="text-center text-sm text-slate-700">
         Teaching this?{' '}

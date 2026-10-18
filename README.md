@@ -20,7 +20,8 @@ In a classroom, the teacher creates a class, projects a QR code, and watches a l
 - **Realistic messages** shown as a mail client, a phone's text app, or a chat app's DMs, with an optional "Situation" line for context.
 - **Explained answers:** each red flag or safe sign is highlighted in the message and explained, including links (hover or focus a link to see where it really goes; links never open).
 - **Results** with "most-missed red flags" and false alarms.
-- **Class mode:** join by QR code or 6-character code with just a nickname; a teacher dashboard that refreshes every 5 seconds (players, average score, most-missed red flags, per-message results), removal of inappropriate nicknames, and a Delete class button.
+- **Class mode:** join by QR code or 6-character code with just a nickname. Students can replay; their best finished run counts. A teacher dashboard refreshes every 5 seconds with each student's best score, attempts, and Passed / Not yet against a passing score the teacher sets (default 80%), plus the class's most-missed red flags and per-message results. Teachers can show the QR code again, export a CSV, remove nicknames, reset a student's rejoin code, and delete the class.
+- **Pick up where you left off, without accounts:** this browser remembers which player you are in each class (and, for teachers, the classes created here), so students resume at the first message they haven't answered. On another device, a 6-character rejoin code shown once at joining restores the player.
 - **Password check:** see whether a password has appeared in a data breach without sending it anywhere, plus a random 4-word passphrase suggestion.
 - **Guide for teachers** in the app: a 15 to 20 minute lesson plan, what's stored, and discussion questions.
 - **Accessible:** keyboard shortcuts (P, L, Enter), full keyboard and screen-reader support, WCAG AA contrast, reduced-motion support, and layouts that work down to 375px wide. Checked with axe-core.
@@ -37,7 +38,7 @@ flowchart LR
 
 - **Client:** React 19, Vite, TypeScript and Tailwind CSS v4. All game state lives in React; solo play needs no server calls. Messages live in `shared/messages.ts`, and `npm run check:messages` verifies every highlight matches its message text exactly once.
 - **Server:** Express 5 in TypeScript. It serves the built client and a small JSON API for classes. It grades answers itself from the same shared message data, so the client never reports whether it was right. All input is validated with zod (only a nickname or an answer is accepted), and requests are rate limited in ways that don't penalize a whole classroom sharing one network.
-- **Database:** Postgres through Prisma 7 with three tables: `Class`, `Player`, `Answer`. The 60-player cap is enforced in a single SQL statement, so a whole class can join at once. An hourly job deletes classes that haven't been used for 7 days.
+- **Database:** Postgres through Prisma 7 with four tables: `Class`, `Player`, `Attempt`, `Answer`. Each play-through is an attempt; only the first answer to each message within an attempt counts, and a student's class score is their best finished attempt. The 60-player cap is enforced in a single SQL statement, so a whole class can join at once. An hourly job deletes classes that haven't been used for 7 days.
 - **Hosting:** one Railway service plus Railway Postgres. Railway runs `npm run build`, then the pre-deploy command `npm run db:migrate` (a failed migration leaves the previous version running), then `npm start`, with a health check on `/api/health`.
 
 ## The password check, step by step
@@ -54,7 +55,8 @@ The check uses the Pwned Passwords **range API**, which is built on *k-anonymity
 
 ## Privacy
 
-- **What Hooked stores:** for each student in a class, the nickname they type and their answers (which message, phish or legit, and whether it was right). For each class, a 6-character code and a SHA-256 hash of the teacher's dashboard key; the key itself is only ever shown to the teacher.
+- **What Hooked stores:** for each student in a class, the nickname they type, a hash of their rejoin code, and their answers grouped into attempts (which message, phish or legit, whether it was right, and when each attempt started and finished). For each class, a 6-character code, the passing score, and a SHA-256 hash of the teacher's dashboard key; the keys and codes themselves are only ever shown to the teacher or student they belong to.
+- **On the device:** the browser's local storage remembers, for teachers, the classes created there (code and dashboard key, so the dashboard can be reopened from the start screen) and, for students, their player in each class (class code, player id, nickname). Nothing else, and never passwords or answers. On a shared computer, anyone using that browser can reopen those dashboards, so teachers should delete the class when done or use a private window.
 - **Nothing else:** no accounts, real names, email addresses, cookies, or analytics. Solo play doesn't send answers anywhere.
 - **Deletion:** a class, with its players and answers, is deleted when the teacher deletes it, or automatically after 7 days with no use (no joins, no answers, no dashboard visits). The dashboard shows the date.
 - **Passwords** are never stored or sent. Only a 5-character prefix of the password's SHA-1 hash leaves the device (see above).

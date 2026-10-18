@@ -1,9 +1,13 @@
 import type {
   ApiError,
+  AttemptProgress,
   ClassSummary,
   CreateClassResponse,
   JoinClassResponse,
   KeepClassResponse,
+  PlayerProgress,
+  RejoinResponse,
+  ResetRejoinCodeResponse,
   SubmitAnswerRequest,
   SubmitAnswerResponse,
 } from '../../../shared/api.ts';
@@ -47,6 +51,19 @@ export const api = {
       body: JSON.stringify({ nickname }),
     }),
 
+  rejoinClass: (code: string, nickname: string, rejoinCode: string) =>
+    request<RejoinResponse>(`/classes/${encodeURIComponent(code)}/rejoin`, {
+      method: 'POST',
+      body: JSON.stringify({ nickname, rejoinCode }),
+    }),
+
+  /** This player's own progress; rejects with 404 if they were removed or the class closed. */
+  player: (playerId: string) => request<PlayerProgress>(`/players/${encodeURIComponent(playerId)}`),
+
+  /** Resumes the unfinished attempt, or starts a new one. */
+  startAttempt: (playerId: string) =>
+    request<AttemptProgress>(`/players/${encodeURIComponent(playerId)}/attempts`, { method: 'POST' }),
+
   submitAnswer: (body: SubmitAnswerRequest) =>
     request<SubmitAnswerResponse>('/answers', { method: 'POST', body: JSON.stringify(body) }),
 
@@ -65,6 +82,19 @@ export const api = {
       method: 'POST',
       headers: teacherHeaders(teacherKey),
     }),
+
+  setTargetPercent: (code: string, teacherKey: string, targetPercent: number) =>
+    request<{ targetPercent: number }>(`/classes/${encodeURIComponent(code)}`, {
+      method: 'PATCH',
+      headers: teacherHeaders(teacherKey),
+      body: JSON.stringify({ targetPercent }),
+    }),
+
+  resetRejoinCode: (code: string, teacherKey: string, playerId: string) =>
+    request<ResetRejoinCodeResponse>(
+      `/classes/${encodeURIComponent(code)}/players/${encodeURIComponent(playerId)}/rejoin-code`,
+      { method: 'POST', headers: teacherHeaders(teacherKey) },
+    ),
 
   deleteClass: (code: string, teacherKey: string) =>
     request<void>(`/classes/${encodeURIComponent(code)}`, { method: 'DELETE', headers: teacherHeaders(teacherKey) }),

@@ -34,8 +34,9 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         Each student sorts the messages into <strong>Phish</strong> or <strong>Legit</strong> and sees the red flags (or
-        the signs it’s safe) after every answer. Fast finishers can play again (only first answers count for the class)
-        or try the password check.
+        the signs it’s safe) after every answer. Fast finishers can play again (their best run counts) or try the password
+        check. If a student closes the tab, the join link picks up where they left off; on another device they use the
+        rejoin code they were shown when they joined (you can reset it from the dashboard).
       </>
     ),
   },
@@ -44,8 +45,9 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     title: 'Review the dashboard together',
     body: (
       <>
-        Project the <strong>Most-missed red flags</strong> and <strong>Per message</strong> sections and talk through
-        the messages your class found hardest. Before projecting, switch to full screen (F11, or the full-screen key on
+        Use <strong>Show QR code</strong> for latecomers. Then project the <strong>Most-missed red flags</strong> and{' '}
+        <strong>Per message</strong> sections and talk through the messages your class found hardest. Set a passing
+        score if you like (80% by default) and use <strong>Export CSV</strong> to keep a record. Before projecting, switch to full screen (F11, or the full-screen key on
         a Chromebook) so the private dashboard link in the address bar isn’t shown, and scroll past the player list if
         you’d rather not show individual scores.
       </>
@@ -102,8 +104,9 @@ export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
       <Section id="data-heading" icon={<LockIcon className="size-5" />} title="What’s stored, and for how long">
         <ul className="mt-4 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-slate-700">
           <li>
-            <strong className="text-slate-900">For each student:</strong> the nickname they type and their answers (which
-            message, phish or legit, and whether it was right). Hooked doesn’t ask for names, emails, or accounts.
+            <strong className="text-slate-900">For each student:</strong> the nickname they type, a scrambled (hashed) copy of
+            their rejoin code, and their answers in each attempt (which message, phish or legit, and whether it was right).
+            Hooked doesn’t ask for names, emails, or accounts.
           </li>
           <li>
             <strong className="text-slate-900">For the class:</strong> a 6-character code and a scrambled (hashed) copy of
@@ -116,6 +119,11 @@ export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
           <li>
             <strong className="text-slate-900">Playing without a class code</strong> doesn’t send any answers to Hooked’s
             server.
+          </li>
+          <li>
+            <strong className="text-slate-900">On this device:</strong> the browser remembers classes you created here
+            (including the dashboard key) and which player a student is in each class, so both can pick up where they left
+            off. On a shared computer, delete the class when you’re done or use a private window.
           </li>
           <li>
             <strong className="text-slate-900">Password check:</strong> passwords are never stored or sent. Only the first 5

@@ -3,6 +3,7 @@ import { messages, type Message } from '../../shared/messages.ts';
 import { api, ApiRequestError } from './class/api.ts';
 import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
 import { takeJoinParam } from './class/joinLink.ts';
+import { forgetClass, forgetPlayer, rememberClass, rememberPlayer } from './class/storage.ts';
 import type { Answer } from './game/types.ts';
 import { Logo } from './components/Logo.tsx';
 import { DashboardScreen } from './screens/DashboardScreen.tsx';
@@ -16,7 +17,7 @@ import { TeacherScreen } from './screens/TeacherScreen.tsx';
 
 type GameScreen =
   | { name: 'start' }
-  | { name: 'play'; deck: Message[] }
+  | { name: 'play'; deck: Message[]; initialAnswers?: Answer[] }
   | { name: 'results'; answers: Answer[] };
 
 type Screen =
@@ -51,12 +52,31 @@ function initialScreen(): Screen {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Rebuilds the answers a resumed attempt already has, in deck order. Stops at the first
+ * unanswered message, which is where play resumes (answers are given in order).
+ */
+function resumedAnswers(saved: { messageId: string; choice: 'phish' | 'legit' }[]): Answer[] {
+  const choices = new Map(saved.map((a) => [a.messageId, a.choice]));
+  const answers: Answer[] = [];
+  for (const message of messages) {
+    const choice = choices.get(message.id);
+    if (!choice) break;
+    answers.push({ message, guessedPhish: choice === 'phish' });
+  }
+  return answers;
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [round, setRound] = useState(0);
   const [session, setSession] = useState<ClassSession | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** A new player's rejoin code, shown once on the start screen. */
+  const [rejoinCode, setRejoinCode] = useState<string | null>(null);
+  /** The class attempt answers are reported to (set when a class round starts). */
+  const attemptIdRef = useRef<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const isFirstScreen = useRef(true);
 
@@ -85,7 +105,8 @@ export default function App() {
   }, []);
 
   // The class went away (teacher deleted it, or it expired): drop back to solo play.
-  const closeSession = useCallback(() => {
+  const closeSession = useCallback((code: string) => {
+    forgetPlayer(code);
     setSession(null);
     setSyncError(null);
     setNotice('This class was closed. You can keep playing on your own.');
@@ -98,7 +119,7 @@ export default function App() {
         await api.classStatus(code);
         setSyncError(removedMessage);
       } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 404) closeSession();
+        if (err instanceof ApiRequestError && err.status === 404) closeSession(code);
         else setSyncError(removedMessage);
       }
     },
@@ -106,21 +127,29 @@ export default function App() {
   );
 
   const play = async () => {
+    let initialAnswers: Answer[] = [];
+    attemptIdRef.current = null;
+    setSyncError(null);
+    setNotice(null);
     if (session) {
       try {
-        await api.classStatus(session.code);
+        // Resumes the unfinished attempt (if any) or starts a new one.
+        const attempt = await api.startAttempt(session.playerId);
+        attemptIdRef.current = attempt.attemptId;
+        initialAnswers = resumedAnswers(attempt.answers);
       } catch (err) {
         if (err instanceof ApiRequestError && err.status === 404) {
-          closeSession();
+          await explainMissingPlayer(session.code, 'You’re no longer in this class. Join again, or keep playing on your own.');
+          forgetPlayer(session.code);
+          setSession(null);
           return;
         }
-        // Offline or a server hiccup: play anyway; answers retry and report problems.
+        setSyncError('Couldn’t reach your class, so this round won’t count for it. Check your connection.');
       }
     }
     setRound((r) => r + 1);
-    setSyncError(null);
-    setNotice(null);
-    setScreen({ name: 'play', deck: messages });
+    if (initialAnswers.length >= messages.length) setScreen({ name: 'results', answers: initialAnswers });
+    else setScreen({ name: 'play', deck: messages, initialAnswers });
   };
   const openPasswordCheck = (back: GameScreen) => setScreen({ name: 'password', back });
   const openGuide = (back: Screen) => setScreen({ name: 'guide', back });
@@ -129,8 +158,11 @@ export default function App() {
   const reportAnswer = useCallback(
     async (answer: Answer) => {
       if (!session) return;
+      const attemptId = attemptIdRef.current;
+      if (!attemptId) return; // this round couldn't reach the class; already explained
       const body = {
         playerId: session.playerId,
+        attemptId,
         messageId: answer.message.id,
         choice: answer.guessedPhish ? ('phish' as const) : ('legit' as const),
       };
@@ -187,6 +219,12 @@ export default function App() {
             onLeaveClass={() => {
               setSession(null);
               setNotice(null);
+              setRejoinCode(null);
+            }}
+            rejoinCode={rejoinCode}
+            onDismissRejoinCode={() => setRejoinCode(null)}
+            onOpenDashboard={(credentials) => {
+              window.location.hash = dashboardHash(credentials);
             }}
             onTeacher={() => setScreen({ name: 'teacher' })}
             onTeacherGuide={() => openGuide(screen)}
@@ -197,6 +235,7 @@ export default function App() {
           <PlayScreen
             key={round}
             deck={screen.deck}
+            initialAnswers={screen.initialAnswers}
             onAnswer={session ? reportAnswer : undefined}
             onFinish={(answers) => setScreen({ name: 'results', answers })}
           />
@@ -214,9 +253,11 @@ export default function App() {
           <JoinScreen
             initialCode={screen.initialCode}
             onBack={() => setScreen({ name: 'start' })}
-            onJoined={(joined) => {
+            onJoined={(joined, newRejoinCode) => {
+              rememberPlayer(joined);
               setSession(joined);
               setNotice(null);
+              setRejoinCode(newRejoinCode ?? null);
               setScreen({ name: 'start' });
             }}
           />
@@ -225,6 +266,7 @@ export default function App() {
           <TeacherScreen
             onBack={() => setScreen({ name: 'start' })}
             onTeacherGuide={() => openGuide(screen)}
+            onCreated={(credentials) => rememberClass({ ...credentials, createdAt: new Date().toISOString() })}
             onOpenDashboard={(credentials) => {
               window.location.hash = dashboardHash(credentials);
             }}
@@ -238,7 +280,13 @@ export default function App() {
             }}
           />
         )}
-        {screen.name === 'dashboard' && <DashboardScreen key={screen.credentials.code} credentials={screen.credentials} />}
+        {screen.name === 'dashboard' && (
+          <DashboardScreen
+            key={screen.credentials.code}
+            credentials={screen.credentials}
+            onGone={() => forgetClass(screen.credentials.code)}
+          />
+        )}
       </main>
     </div>
   );

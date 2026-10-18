@@ -64,8 +64,8 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
         </p>
         {classCode && (
           <p className="relative mt-4 max-w-md text-sm text-sky-100">
-            Your answers went to class <span className="font-mono font-semibold text-white">{classCode}</span>. If you play
-            again, only your first answer to each message counts for the class.
+            Your answers went to class <span className="font-mono font-semibold text-white">{classCode}</span>. Your best
+            run counts for the class, so you can play again to try to beat it.
           </p>
         )}
       </div>

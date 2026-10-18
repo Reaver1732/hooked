@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '../class/api.ts';
 import { dashboardHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
-import { joinUrl } from '../class/joinLink.ts';
-import { JoinQrCode } from '../components/JoinQrCode.tsx';
+import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { CLASS_IDLE_DAYS } from '../../../shared/api.ts';
 import { BACK_LINK, button, CARD, FOCUS_RING, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
 import { ChalkboardIcon, ChevronLeftIcon } from '../components/icons.tsx';
@@ -12,9 +11,11 @@ type Props = {
   onBack: () => void;
   onOpenDashboard: (credentials: TeacherCredentials) => void;
   onTeacherGuide: () => void;
+  /** Lets the app remember this class on this browser. */
+  onCreated: (credentials: TeacherCredentials) => void;
 };
 
-export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide }: Props) {
+export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreated }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [created, setCreated] = useState<TeacherCredentials | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,9 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide }: Props
     setError(null);
     setBusy(true);
     try {
-      setCreated(await api.createClass());
+      const credentials = await api.createClass();
+      onCreated(credentials);
+      setCreated(credentials);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Couldn’t create a class.');
     } finally {
@@ -93,23 +96,14 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide }: Props
         Back
       </button>
       <div className={`${CARD} px-5 py-7 sm:px-8`}>
-        <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="text-center text-2xl font-black tracking-tight outline-none sm:text-3xl">
-          Scan to join, or enter the class code
-        </h2>
-        <div className="mt-6 grid items-center gap-6 sm:grid-cols-[1fr_1fr]">
-          <JoinQrCode url={joinUrl(created.code)} />
-          <div className="text-center">
-            <p className="text-sm font-semibold tracking-wide text-slate-700 uppercase">Class code</p>
-            <p className="font-mono text-5xl font-black tracking-[0.08em] whitespace-nowrap text-sky-900 min-[400px]:text-6xl">
-              <span className="sr-only">{created.code.split('').join(' ')}</span>
-              <span aria-hidden>{created.code}</span>
-            </p>
-          </div>
-        </div>
-        <p className="mt-6 text-center text-sm font-semibold tracking-wide text-slate-700 uppercase">Or go to</p>
-        <p className="text-center font-mono text-lg font-semibold break-all text-slate-900 sm:text-xl">
-          {joinUrl(created.code).replace(/^https?:\/\//, '')}
-        </p>
+        <ClassJoinPanel
+          code={created.code}
+          heading={
+            <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="text-center text-2xl font-black tracking-tight outline-none sm:text-3xl">
+              Scan to join, or enter the class code
+            </h2>
+          }
+        />
       </div>
 
       <section aria-labelledby="dashboard-link-heading" className="rounded-2xl border border-amber-300 bg-amber-50 p-5 sm:p-6">
@@ -117,7 +111,9 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide }: Props
           Your dashboard link
         </h3>
         <p className="mt-1 text-sm text-amber-900">
-          <strong>Keep this link private.</strong> Anyone with it can see your class’s results and remove students.
+          <strong>Keep this link private.</strong> Anyone with it can see your class’s results and remove students. This
+          browser also remembers the class so you can reopen its dashboard from the start screen; on a shared computer,
+          delete the class when you’re done or use a private window.
           Don’t project it or share it, and save it somewhere safe: it can’t be recovered.
         </p>
         <p className="mt-3 rounded-lg bg-white px-3 py-2 font-mono text-xs break-all text-slate-700 ring-1 ring-amber-200">
