@@ -15,7 +15,8 @@
     "start": "node server/dist/server/src/index.js",
     "check:messages": "tsx scripts/check-messages.ts",
     "db:migrate": "npm run db:migrate -w server",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
