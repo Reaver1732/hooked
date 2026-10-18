@@ -22,7 +22,7 @@ In a classroom, the teacher creates a class, projects a QR code, and watches a l
 - **Results** with "most-missed red flags" and false alarms.
 - **Class mode:** join by QR code or 6-character code with just a nickname. Students can replay. A teacher dashboard refreshes every 5 seconds with each student's first score (played before they'd seen any answers) next to their best score, their attempts, and Passed / Not yet (the best score against a passing score the teacher sets, default 80%). It also shows the class's most-missed red flags and per-message results, taken from each student's first run so replays don't hide what fooled the class. Teachers can show the QR code again, export a CSV, remove nicknames, reset a student's rejoin code, and delete the class.
 - **Pick up where you left off, without accounts:** this browser remembers which player you are in each class (and, for teachers, the classes created here), so students resume at the first message they haven't answered, and a refresh keeps the tab in its class. On another device, a 6-character rejoin code shown once at joining restores the player.
-- **Password check:** see whether a password has appeared in a data breach without sending it anywhere, plus a random 4-word passphrase suggestion.
+- **Password check:** see whether a password has appeared in a data breach without sending it anywhere, plus a random 5-word passphrase suggestion.
 - **Guide for teachers** in the app: a 15 to 20 minute lesson plan, what's stored, and discussion questions.
 - **Accessible:** keyboard shortcuts (P, L, Enter), full keyboard and screen-reader support, WCAG AA contrast, reduced-motion support, and layouts that work down to 375px wide. Checked with axe-core in scripted browser runs during development (those scripts aren't in this repo yet).
 
@@ -51,7 +51,7 @@ The check uses the Pwned Passwords **range API**, which is built on *k-anonymity
 4. The API replies with every known breached-password hash that starts with that prefix (about 2,000 suffixes when we tested), each with a count of how many times it appeared in breaches. Because of the padding header, it also adds fake rows with a count of 0, so the size of the response doesn't hint at the prefix.
 5. The browser ignores the padding rows and compares the remaining **35 characters** of the hash against the list, locally.
 6. If there's a match, the student sees how many times the password appeared in breaches; if not, they're told that not being found doesn't make a password strong. A **What left this device** panel shows the 5 characters that were sent next to the full hash.
-7. Hooked suggests a passphrase: 4 words picked from the EFF Long Wordlist with `crypto.getRandomValues` (about 52 bits of randomness).
+7. Hooked suggests a passphrase: 5 words picked with `crypto.getRandomValues` from the EFF Short Wordlist, after removing 55 words about drugs, alcohol, gambling, sex, violence, death, and body parts (1,241 words left, so about 51 bits of randomness).
 
 ## Privacy
 
@@ -97,7 +97,7 @@ To deploy on Railway, create a service from the repo plus a Postgres database, t
 
 ## Credits
 
-- Passphrase words from the [EFF Long Wordlist](https://www.eff.org/dice) (CC BY 3.0).
+- Passphrase words from the [EFF Short Wordlist](https://www.eff.org/dice) (CC BY 3.0), with 55 words removed for school use (listed in `client/src/password/passphrase.ts`).
 - Fonts: [Fredoka](https://fonts.google.com/specimen/Fredoka) and [Nunito](https://fonts.google.com/specimen/Nunito) (SIL Open Font License), self-hosted through [Fontsource](https://fontsource.org).
 - Breach data from the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) Pwned Passwords API by Troy Hunt. HIBP's API documentation states that the Pwned Passwords API has no licensing or attribution requirements; we credit it here and in the app anyway.
 - All people, companies, and schools in the game are made up. Links in the game never open.

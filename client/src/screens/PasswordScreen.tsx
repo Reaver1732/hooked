@@ -172,7 +172,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
           <h3 id="passphrase-heading" className="hk-display text-heading">
             Try a passphrase instead
           </h3>
-          <p className="mt-2 text-small text-card-ink-muted">Four random words are easier to remember and harder to guess.</p>
+          <p className="mt-2 text-small text-card-ink-muted">Five random words are easier to remember and harder to guess.</p>
           {passphrase ? (
             <p className="mt-4 rounded-control bg-surface-muted px-4 py-3 font-code text-heading font-bold wrap-break-word">
               {passphrase.join(' ')}
@@ -183,7 +183,7 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
             </div>
           )}
           <button type="button" onClick={newPassphrase} className={`${button('secondary')} mt-4`}>
-            {passphrase ? 'Regenerate' : 'Try again'}
+            {passphrase ? 'New words' : 'Try again'}
           </button>
         </section>
       )}
@@ -193,7 +193,11 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
         <a href="https://haveibeenpwned.com/Passwords" target="_blank" rel="noopener noreferrer" className="hk-link text-ink">
           Have I Been Pwned
         </a>{' '}
-        Pwned Passwords API.
+        Pwned Passwords API. Passphrase words from the{' '}
+        <a href="https://www.eff.org/dice" target="_blank" rel="noopener noreferrer" className="hk-link text-ink">
+          EFF Short Wordlist
+        </a>
+        , with some words removed for school use.
       </p>
     </section>
   );
