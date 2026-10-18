@@ -322,14 +322,19 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
   const target = cls.targetPercent;
   const rows = players.map((p) => {
     const best = bestAttempt(p.attempts);
+    // Attempts are ordered by start, so this is the first run the student finished,
+    // played before they'd seen any answers.
+    const first = p.attempts.find((a) => a.finishedAt);
     const current = p.attempts.find((a) => !a.finishedAt);
     return {
       best,
+      first,
       row: {
         id: p.id,
         nickname: p.nickname,
         attempts: p.attempts.filter((a) => a.finishedAt).length,
         inProgress: current ? current.answers.length : null,
+        first: first ? scoreOf(first.answers) : null,
         best: best?.score ?? null,
         // Exact comparison (12/15 = 80% passes an 80% target), not the rounded percent.
         passed: best ? best.score.total > 0 && best.score.correct * 100 >= target * best.score.total : false,
@@ -337,9 +342,10 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
     };
   });
 
-  // Most-missed flags and per-message results use each student's best attempt.
-  const bestAnswers = rows.flatMap((r) => r.best?.attempt.answers ?? []);
-  const graded = bestAnswers.flatMap((a) => {
+  // Most-missed flags and per-message results use each student's first finished attempt:
+  // replays are played after seeing every answer, so they'd hide what the class missed.
+  const firstAnswers = rows.flatMap((r) => r.first?.answers ?? []);
+  const graded = firstAnswers.flatMap((a) => {
     const message = messagesById.get(a.messageId);
     return message ? [{ message, guessedPhish: a.choice === 'phish' }] : [];
   });
@@ -358,7 +364,7 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
     players: rows.map((r) => r.row),
     mostMissedFlags: mostMissedFlags(graded).map(([type, count]) => ({ type, count })),
     perMessage: messages.map((m) => {
-      const answers = bestAnswers.filter((a) => a.messageId === m.id);
+      const answers = firstAnswers.filter((a) => a.messageId === m.id);
       const correctCount = answers.filter((a) => a.correct).length;
       return {
         id: m.id,

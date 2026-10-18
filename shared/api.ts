@@ -58,12 +58,15 @@ export type ClassSummary = {
     attempts: number;
     /** Messages answered in the current unfinished attempt, if there is one. */
     inProgress: number | null;
+    /** The first finished attempt, played before seeing any answers. */
+    first: Score | null;
+    /** The best finished attempt; decides `passed`. */
     best: Score | null;
     passed: boolean;
   }[];
-  /** From each player's best finished attempt. */
+  /** From each player's first finished attempt. */
   mostMissedFlags: { type: FlagType; count: number }[];
-  /** From each player's best finished attempt. */
+  /** From each player's first finished attempt. */
   perMessage: {
     id: string;
     kind: Message['kind'];

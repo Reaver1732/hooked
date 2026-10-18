@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
-import { CLASS_IDLE_DAYS, type ClassSummary } from '../../../shared/api.ts';
+import { CLASS_IDLE_DAYS, type ClassSummary, type Score } from '../../../shared/api.ts';
 import { FLAG_LABELS } from '../../../shared/flags.ts';
 import { api, ApiRequestError } from '../class/api.ts';
 import { dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
@@ -18,6 +18,8 @@ const formatWhen = (iso: string) =>
 
 type PlayerRow = ClassSummary['players'][number];
 
+const scoreText = (s: Score) => `${s.correct}/${s.total}`;
+
 /** CSV cell: quoted, with a leading ' on anything a spreadsheet would run as a formula. */
 function csvCell(value: string | number): string {
   let text = String(value);
@@ -27,8 +29,14 @@ function csvCell(value: string | number): string {
 
 function exportCsv(summary: ClassSummary) {
   const rows = [
-    ['Nickname', 'Best score (%)', 'Attempts', 'Passed'],
-    ...summary.players.map((p) => [p.nickname, p.best ? p.best.percent : '', p.attempts, p.passed ? 'Yes' : 'No']),
+    ['Nickname', 'First score (%)', 'Best score (%)', 'Attempts', 'Passed'],
+    ...summary.players.map((p) => [
+      p.nickname,
+      p.first ? p.first.percent : '',
+      p.best ? p.best.percent : '',
+      p.attempts,
+      p.passed ? 'Yes' : 'No',
+    ]),
   ];
   const csv = rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' }));
@@ -390,9 +398,10 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                         </span>
                       </div>
                       <p className="text-small text-card-ink-muted">
-                        {p.best ? (
+                        {p.first && p.best ? (
                           <>
-                            Best <strong className="text-card-ink">{p.best.percent}%</strong> ({p.best.correct}/{p.best.total})
+                            First <strong className="text-card-ink">{p.first.percent}%</strong> ({scoreText(p.first)}) · Best{' '}
+                            <strong className="text-card-ink">{p.best.percent}%</strong> ({scoreText(p.best)})
                           </>
                         ) : (
                           'No finished run yet'
@@ -441,7 +450,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
               icon={<FlagIcon className="size-6" />}
               tone="mark"
               title="Most-missed red flags"
-              subtitle="From each student’s best finished run: red flags in phish they marked Legit."
+              subtitle="From each student’s first finished run, before they’d seen any answers: red flags in phish they marked Legit."
             >
               {summary.mostMissedFlags.length === 0 ? (
                 <p className="mt-4 text-small text-card-ink-muted">None yet.</p>
@@ -460,7 +469,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
               )}
             </Panel>
 
-            <Panel icon={<FishIcon className="size-6" />} title="Per message" subtitle="Percent correct in each student’s best finished run.">
+            <Panel icon={<FishIcon className="size-6" />} title="Per message" subtitle="Percent correct in each student’s first finished run.">
               <ol role="list" className="mt-2 divide-y divide-line">
                 {summary.perMessage.map((m, i) => (
                   <li key={m.id} className="py-3">

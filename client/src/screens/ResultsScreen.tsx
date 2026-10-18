@@ -74,8 +74,8 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
         )}
         {classCode && (
           <p className="relative mt-4 max-w-xl text-small text-ink-muted">
-            Your answers went to class <span className="font-code font-bold text-ink">{classCode}</span>. Your best run
-            counts for the class, so you can play again to try to beat it.
+            Your answers went to class <span className="font-code font-bold text-ink">{classCode}</span>. Your teacher sees
+            your first run and your best one, and your best one counts for passing, so you can play again to beat it.
           </p>
         )}
         <div className="relative mt-6 flex flex-wrap gap-4">
