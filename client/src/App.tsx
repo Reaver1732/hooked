@@ -259,7 +259,7 @@ export default function App() {
       ) : (
         <header className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
           <h1>
-            <button type="button" onClick={goToStart} aria-label="Hooked, back to start" className="hk-focus rounded-chip">
+            <button type="button" onClick={goToStart} aria-label="Hooked, go to start" className="hk-focus rounded-chip">
               <Wordmark size="sm" />
             </button>
           </h1>
