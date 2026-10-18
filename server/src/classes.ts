@@ -177,7 +177,9 @@ classesRouter.post('/classes/:code/rejoin', rejoinIpLimit, rejoinClassLimit, asy
   const player = await db().player.findFirst({
     where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
   });
-  // Same answer for an unknown nickname and a wrong code, so neither can be probed.
+  // Same answer for an unknown nickname and a wrong code, so a failed rejoin doesn't say which
+  // was wrong. Nicknames aren't secret (join reports taken ones and the dashboard lists them);
+  // the rejoin code and its guess limits are the protection.
   if (!player?.rejoinCodeHash || !hashesEqual(hashRejoinCode(player.id, rejoinCode), player.rejoinCodeHash)) {
     throw new HttpError(401, 'That nickname and rejoin code don’t match. Check both, or ask your teacher for a new code.');
   }
