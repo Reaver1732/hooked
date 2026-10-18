@@ -275,7 +275,16 @@ classesRouter.post('/players/:playerId/attempts', loadPlayer, playerLimit, async
       orderBy: { startedAt: 'desc' },
       include: { answers: attemptAnswers },
     });
-    return open ?? tx.attempt.create({ data: { playerId }, include: { answers: attemptAnswers } });
+    if (open) {
+      const current = new Set(MESSAGE_IDS);
+      const covered = new Set(open.answers.map((a) => a.messageId).filter((id) => current.has(id))).size;
+      if (covered < MESSAGE_IDS.length) return open;
+      // Every current message is answered but the attempt was never marked finished (the step
+      // after the last answer failed, or a content change removed the messages that were left).
+      // Finish it now, so it counts, and start a fresh one.
+      await tx.attempt.update({ where: { id: open.id }, data: { finishedAt: new Date() } });
+    }
+    return tx.attempt.create({ data: { playerId }, include: { answers: attemptAnswers } });
   });
   if (!attempt) throw new HttpError(404, PLAYER_NOT_FOUND);
   res.json(toProgress(attempt) satisfies AttemptProgress);
