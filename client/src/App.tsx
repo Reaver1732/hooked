@@ -166,6 +166,23 @@ export default function App() {
   const openPasswordCheck = (back: GameScreen) => setScreen({ name: 'password', back });
   const openGuide = (back: Screen) => setScreen({ name: 'guide', back });
 
+  // The header wordmark goes back to the start screen. Mid-round, check first.
+  const goToStart = () => {
+    if (
+      screen.name === 'play' &&
+      !window.confirm(
+        session
+          ? 'Go back to the start? Your answers so far are saved for your class, and Start picks up where you left off.'
+          : 'Go back to the start? The answers in this round won’t be kept.',
+      )
+    ) {
+      return;
+    }
+    // Leaving the dashboard or guide: drop their hash so a reload lands on the start screen too.
+    if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
+    setScreen({ name: 'start' });
+  };
+
   // Report each answer to the class. The server grades it; we only send the choice.
   const reportAnswer = useCallback(
     async (answer: Answer) => {
@@ -242,7 +259,9 @@ export default function App() {
       ) : (
         <header className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
           <h1>
-            <Wordmark size="sm" />
+            <button type="button" onClick={goToStart} aria-label="Hooked, back to start" className="hk-focus rounded-chip">
+              <Wordmark size="sm" />
+            </button>
           </h1>
           {session && (screen.name === 'play' || screen.name === 'results') && (
             <p className="rounded-full bg-raised px-3 py-1 text-small text-ink">
