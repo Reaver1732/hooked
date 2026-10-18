@@ -54,7 +54,7 @@ The check uses the Pwned Passwords **range API**, which is built on *k-anonymity
 4. The API replies with every known breached-password hash that starts with that prefix (about 2,000 suffixes when we tested), each with a count of how many times it appeared in breaches. Because of the padding header, it also adds fake rows with a count of 0, so the size of the response doesn't hint at the prefix.
 5. The browser ignores the padding rows and compares the remaining **35 characters** of the hash against the list, locally.
 6. If there's a match, the student sees how many times the password appeared in breaches; if not, they're told that not being found doesn't make a password strong. A **What left this device** panel shows the 5 characters that were sent next to the full hash.
-7. Hooked suggests a passphrase: 5 words picked with `crypto.getRandomValues` from the EFF Short Wordlist, after removing 55 words about drugs, alcohol, gambling, sex, violence, death, and body parts (1,241 words left, so about 51 bits of randomness).
+7. Hooked suggests a passphrase: 5 words picked with `crypto.getRandomValues` from the EFF Short Wordlist, after removing 73 words about drugs, alcohol, gambling, sex, violence, death, body parts, religion, and politics, plus hateful words and insults (1,223 words left, so about 51 bits of randomness).
 
 ## Privacy
 
@@ -100,7 +100,7 @@ To deploy on Railway, create a service from the repo plus a Postgres database, t
 
 ## Credits
 
-- Passphrase words from the [EFF Short Wordlist](https://www.eff.org/dice) (CC BY 3.0), with 55 words removed for school use (listed in `client/src/password/passphrase.ts`).
+- Passphrase words from the [EFF Short Wordlist](https://www.eff.org/dice) (CC BY 3.0), with 73 words removed for school use (listed in `client/src/password/passphrase.ts`).
 - Fonts: [Fredoka](https://fonts.google.com/specimen/Fredoka) and [Nunito](https://fonts.google.com/specimen/Nunito) (SIL Open Font License), self-hosted through [Fontsource](https://fontsource.org).
 - Breach data from the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) Pwned Passwords API by Troy Hunt. HIBP's API documentation states that the Pwned Passwords API has no licensing or attribution requirements; we credit it here and in the app anyway.
 - All people, companies, and schools in the game are made up. Links in the game never open.

@@ -5,14 +5,18 @@
 // (A plain fetch, not a dynamic import, because browsers cache a failed import forever.)
 import wordlistUrl from './eff_short_wordlist_1.txt?url';
 
-/** Words removed for school use, by reason. 55 in all, leaving 1,241. */
+/** Words removed for school use, by reason. 73 in all, leaving 1,223. */
 export const REMOVED_WORDS: Record<string, string[]> = {
   drugs: ['acid', 'blunt', 'coke', 'dose', 'junky'],
-  alcohol: ['keg'],
+  alcohol: ['cider', 'keg'],
   gambling: ['poker', 'wager'],
   sex: ['boned', 'flirt', 'grope', 'hump', 'hunk', 'panty', 'prude', 'thong', 'vixen'],
   violence: ['armed', 'arson', 'blade', 'bully', 'gore', 'lance', 'lash', 'mace', 'riot', 'slash', 'wound'],
   death: ['coma', 'drown', 'grave', 'slain', 'widow'],
+  religion: ['angel', 'bless', 'cult', 'islam', 'pagan', 'saint', 'sect', 'tarot'],
+  politics: ['trump'],
+  // Hate, and words that get thrown at someone as insults.
+  hateful: ['chump', 'ditzy', 'dwarf', 'geek', 'hate', 'nerd', 'slob', 'wimp'],
   body: [
     'ankle', 'body', 'boney', 'bony', 'bust', 'cheek', 'elbow', 'femur', 'fetal', 'gut', 'jaws',
     'knee', 'limb', 'lip', 'liver', 'lung', 'mouth', 'thigh', 'thumb', 'tummy', 'womb', 'wrist',
@@ -53,7 +57,7 @@ function randomIndex(n: number): number {
   return buf[0] % n;
 }
 
-/** Five words from 1,241 is about 51.4 bits of entropy, as much as four from the long list. */
+/** Five words from 1,223 is about 51.3 bits of entropy, about as much as four from the long list. */
 export function generatePassphrase(words: string[], wordCount = 5): string[] {
   return Array.from({ length: wordCount }, () => words[randomIndex(words.length)]);
 }
