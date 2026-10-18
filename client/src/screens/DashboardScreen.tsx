@@ -75,7 +75,13 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
   const [copied, setCopied] = useState(false);
   const [linkShown, setLinkShown] = useState(false);
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
-  const [newCode, setNewCode] = useState<{ playerId: string; nickname: string; code: string } | null>(null);
+  // A reset rejoin code. Hidden until asked for, because the dashboard is often projected and the
+  // class code, nickname and new code together are exactly what rejoining needs.
+  const [newCode, setNewCode] = useState<{ playerId: string; nickname: string; code: string; shown: boolean } | null>(null);
+  const showCodeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (newCode && !newCode.shown) showCodeRef.current?.focus();
+  }, [newCode]);
   const [gone, setGone] = useState<string | null>(null); // why the class is no longer available
   // `fatal` stops polling (bad key, class gone); otherwise the last good data stays up.
   const [error, setError] = useState<{ message: string; fatal: boolean } | null>(null);
@@ -221,7 +227,7 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
     if (!window.confirm(`Give “${p.nickname}” a new rejoin code? Their old code will stop working.`)) return;
     try {
       const { rejoinCode } = await api.resetRejoinCode(code, teacherKey, p.id);
-      setNewCode({ playerId: p.id, nickname: p.nickname, code: rejoinCode });
+      setNewCode({ playerId: p.id, nickname: p.nickname, code: rejoinCode, shown: false });
     } catch (err) {
       if (await playerAlreadyGone(err, `${p.nickname} is no longer in this class.`)) return;
       handleError(err, 'Couldn’t reset that code.');
@@ -243,6 +249,7 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
 
   async function deleteClass() {
     if (!window.confirm(`Delete class ${code}? All players and their answers will be deleted. This can’t be undone.`)) return;
+    setNewCode(null);
     try {
       await api.deleteClass(code, teacherKey);
       setGone(`Class ${code} was deleted, along with its players and answers.`);
@@ -253,6 +260,7 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
 
   async function removePlayer(id: string, nickname: string) {
     if (!window.confirm(`Remove “${nickname}” from the class? Their answers will be deleted.`)) return;
+    setNewCode(null);
     try {
       await api.removePlayer(code, teacherKey, id);
       await refresh();
@@ -297,7 +305,14 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
               {code}
             </p>
           </div>
-          <button type="button" onClick={() => qrDialogRef.current?.showModal()} className={button('primary', 'sm')}>
+          <button
+            type="button"
+            onClick={() => {
+              setNewCode(null); // about to be projected
+              qrDialogRef.current?.showModal();
+            }}
+            className={button('primary', 'sm')}
+          >
             Show QR code
           </button>
         </div>
@@ -490,9 +505,24 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
                         {p.inProgress !== null && ` · playing now (${p.inProgress}/${summary.totalMessages})`}
                       </p>
                       {newCode?.playerId === p.id && (
-                        <p aria-live="polite" className="rounded-control border-2 border-primary bg-surface-muted px-4 py-3 text-small">
-                          New rejoin code for {newCode.nickname}:{' '}
-                          <strong className="font-code text-heading tracking-widest">{newCode.code}</strong>. It’s shown only once.{' '}
+                        <p className="rounded-control border-2 border-primary bg-surface-muted px-4 py-3 text-small">
+                          New rejoin code for {newCode.nickname} is ready. It’s shown only once, so show it where only{' '}
+                          {newCode.nickname} can see it.{' '}
+                          {newCode.shown && (
+                            <>
+                              <strong className="font-code text-heading tracking-widest">{newCode.code}</strong>{' '}
+                            </>
+                          )}
+                          <button
+                            ref={showCodeRef}
+                            type="button"
+                            onClick={() => setNewCode({ ...newCode, shown: !newCode.shown })}
+                            aria-label={`${newCode.shown ? 'Hide code' : 'Show code'} for ${newCode.nickname}`}
+                            className="hk-link"
+                          >
+                            {newCode.shown ? 'Hide code' : 'Show code'}
+                          </button>
+                          {' · '}
                           <TextButton onClick={() => setNewCode(null)}>Done</TextButton>
                         </p>
                       )}

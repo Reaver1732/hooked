@@ -39,7 +39,7 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
         shows each student’s first score (before they’d seen any answers) and their best; Passed uses the best. If a
         student refreshes the page, they stay in the class. If they close the tab, the join link picks up where they left
         off; on another device they use the rejoin code they were shown when they joined (you can reset it from the
-        dashboard).
+        dashboard; the new code stays hidden until you press <strong>Show code</strong>, so it’s safe while projecting).
       </>
     ),
   },
