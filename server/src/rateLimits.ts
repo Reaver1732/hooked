@@ -153,3 +153,37 @@ export const unknownPlayerLimit = limiter({
   limit: 100,
   tooMany: 'Too many requests from your network.',
 });
+
+/**
+ * Counts failures per key in memory, for checks that only the failure path should consult: a
+ * request that passes never touches it, so it can't be used to block legitimate users who
+ * share a network with whoever is failing.
+ */
+function failureCounter({ name, windowMs, limit }: { name: string; windowMs: number; limit: number }) {
+  const counts = new Map<string, { count: number; resetAt: number }>();
+  return {
+    /** Records a failure; true once this key is over the limit. */
+    hit(key: string): boolean {
+      const now = Date.now();
+      if (counts.size > 10_000) {
+        for (const [k, v] of counts) if (v.resetAt <= now) counts.delete(k);
+      }
+      let entry = counts.get(key);
+      if (!entry || entry.resetAt <= now) {
+        entry = { count: 0, resetAt: now + windowMs };
+        counts.set(key, entry);
+      }
+      entry.count++;
+      if (entry.count === limit + 1) console.warn(`rate limit "${name}" hit`);
+      return entry.count > limit;
+    },
+  };
+}
+
+/**
+ * Failed teacher-key checks per IP (wrong key, or a class code that doesn't exist). Without a
+ * cap, the 401-vs-404 answer would be an unlimited way to find which class codes exist. Only
+ * failures are counted, so a teacher with the right key is never blocked, even when students
+ * on the same school network are guessing.
+ */
+export const teacherKeyFailures = failureCounter({ name: 'teacher-key', windowMs: 10 * MINUTE, limit: 30 });

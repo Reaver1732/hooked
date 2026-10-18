@@ -32,6 +32,7 @@ import {
   rejoinIpLimit,
   rejoinKey,
   summaryLimit,
+  teacherKeyFailures,
   unknownPlayerLimit,
 } from './rateLimits.ts';
 import { Prisma, type PrismaClient } from './generated/prisma/client.ts';
@@ -117,12 +118,18 @@ function hashesEqual(a: string, b: string): boolean {
 /** Loads the class for :code and checks the X-Teacher-Key header against its stored hash. */
 async function requireTeacher(req: Request) {
   const code = parse(codeSchema, req.params.code);
+  // Too many failures from one IP: answer 429 for every failure from then on, so the
+  // difference between "wrong key" (401) and "no such class" (404) stops leaking.
+  const fail = (status: number, message: string) =>
+    teacherKeyFailures.hit(req.ip ?? '')
+      ? new HttpError(429, 'Too many failed dashboard requests from your network. Try again later.')
+      : new HttpError(status, message);
   const key = teacherKeySchema.safeParse(req.get('X-Teacher-Key'));
-  if (!key.success) throw new HttpError(401, 'Missing or invalid teacher key');
+  if (!key.success) throw fail(401, 'Missing or invalid teacher key');
 
   const cls = await findActiveClass(code);
-  if (!cls) throw new HttpError(404, 'This class was closed or has expired.');
-  if (!hashesEqual(hashKey(key.data), cls.teacherKeyHash)) throw new HttpError(401, 'Missing or invalid teacher key');
+  if (!cls) throw fail(404, 'This class was closed or has expired.');
+  if (!hashesEqual(hashKey(key.data), cls.teacherKeyHash)) throw fail(401, 'Missing or invalid teacher key');
   return cls;
 }
 
