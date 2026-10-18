@@ -50,11 +50,16 @@ export function useStartScreen({ session, rejoinCode }: { session: ClassSession 
     }
     forgetClass(code);
     forgetDashboardKey(code);
-    const rest = classes.filter((c) => c.code !== code);
-    setClasses(rest);
-    // The row (and its button) is gone: keep focus nearby.
-    requestAnimationFrame(() => (rest.length ? classesHeadingRef : headingRef).current?.focus({ preventScroll: true }));
+    focusAfterForget.current = true;
+    setClasses((list) => list.filter((c) => c.code !== code));
   };
+  // The row (and its focused button) is gone: once the list has re-rendered, keep focus nearby.
+  const focusAfterForget = useRef(false);
+  useEffect(() => {
+    if (!focusAfterForget.current) return;
+    focusAfterForget.current = false;
+    (classes.length ? classesHeadingRef : headingRef).current?.focus({ preventScroll: true });
+  }, [classes]);
 
   return { joinRef, headingRef, rejoinRef, classesHeadingRef, classes, forget };
 }
