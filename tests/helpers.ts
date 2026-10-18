@@ -11,7 +11,17 @@ export const hasDatabase = Boolean(process.env.DATABASE_URL);
 export type TestServer = { base: string; output: () => string; stop: () => Promise<void> };
 
 export async function startServer(env: Record<string, string> = {}): Promise<TestServer> {
-  const port = 39000 + Math.floor(Math.random() * 900);
+  // Test files run in parallel, so two servers can pick the same random port. Wait for this
+  // child's own "listening" line (a clash makes it exit instead) and retry on another port,
+  // so a test never ends up talking to another file's server.
+  for (let tries = 0; ; tries++) {
+    const server = await spawnServer(39000 + Math.floor(Math.random() * 900), env);
+    if (server) return server;
+    if (tries === 4) throw new Error('test server would not start');
+  }
+}
+
+async function spawnServer(port: number, env: Record<string, string>): Promise<TestServer | null> {
   const child = spawn(process.execPath, ['server/dist/server/src/index.js'], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port), ...env },
@@ -20,6 +30,11 @@ export async function startServer(env: Record<string, string> = {}): Promise<Tes
   let output = '';
   child.stdout.on('data', (d) => (output += d));
   child.stderr.on('data', (d) => (output += d));
+  for (let i = 0; i < 150 && !output.includes('Server listening'); i++) {
+    if (child.exitCode !== null) return null;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  if (child.exitCode !== null) return null;
   const base = `http://localhost:${port}`;
   for (let i = 0; i < 150; i++) {
     try {
