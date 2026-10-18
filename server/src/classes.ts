@@ -24,6 +24,7 @@ import { messages, type Message } from '../../shared/messages.ts';
 import { getPrisma } from './db.ts';
 import {
   answerLimit,
+  classStatusLimit,
   createClassLimit,
   joinClassLimit,
   playerLimit,
@@ -482,7 +483,7 @@ classesRouter.delete('/classes/:code/players/:playerId', async (req, res) => {
 });
 
 /** Public: lets a student's app tell "class closed" apart from "you were removed". */
-classesRouter.get('/classes/:code/status', joinClassLimit, async (req, res) => {
+classesRouter.get('/classes/:code/status', classStatusLimit, async (req, res) => {
   const code = parse(codeSchema, req.params.code);
   if (!(await findActiveClass(code))) throw new HttpError(404, 'This class was closed.');
   res.set('Cache-Control', 'no-store').json({ open: true });

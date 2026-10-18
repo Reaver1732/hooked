@@ -64,6 +64,14 @@ export const joinClassLimit = limiter({
   limit: 300,
   tooMany: 'Too many attempts to join a class from your network.',
 });
+// Status checks (the start screen checks each saved class) get their own budget, so they
+// can't use up a school network's joins.
+export const classStatusLimit = limiter({
+  name: 'class-status',
+  windowMs: 10 * MINUTE,
+  limit: 600,
+  tooMany: 'Too many requests from your network.',
+});
 
 /**
  * Per player, so classmates on one network never share a budget. Must run after a
