@@ -46,8 +46,14 @@ function initialScreen(): Screen {
   if (joinCode) return { name: 'join', initialCode: joinCode };
 
   // <site>/?quick=1 starts the 5-message quick round (solo only, so not when this tab is in a class).
-  if (new URLSearchParams(window.location.search).get('quick') === '1' && !activeSession()) {
-    return { name: 'play', deck: quickRoundMessages(), quick: true };
+  // The parameter is removed once read, so a refresh after "Play all 15" doesn't restart it.
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('quick')) {
+    const quick = params.get('quick') === '1';
+    params.delete('quick');
+    const search = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (search ? `?${search}` : '') + window.location.hash);
+    if (quick && !activeSession()) return { name: 'play', deck: quickRoundMessages(), quick: true };
   }
 
   // Dev-only preview: ?msg=<id> opens that message directly. import.meta.env.DEV is
@@ -209,18 +215,51 @@ export default function App() {
     window.location.hash = TEACHER_GUIDE_HASH;
   };
 
+  const leaveRoundQuestion = session
+    ? 'Go back to the start? Your answers so far are saved for your class, and Start picks up where you left off.'
+    : 'Go back to the start? The answers in this round won’t be kept.';
+
+  // Browser Back mid-round asks first, like the wordmark does. A round adds one history entry
+  // (same address); Back pops it, and if the player cancels, it's put back. From the results,
+  // Back goes to the start screen. Hash changes (dashboard, guide) are left to hashchange.
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+  const roundEntryRef = useRef(false);
+  useEffect(() => {
+    if (screen.name !== 'play' || roundEntryRef.current) return;
+    window.history.pushState({ hookedRound: true }, '');
+    roundEntryRef.current = true;
+  }, [screen]);
+  useEffect(() => {
+    const onPopState = () => {
+      if (!roundEntryRef.current || window.location.hash) return;
+      roundEntryRef.current = false; // the round's entry was just popped
+      const current = screenRef.current;
+      if (current.name === 'results') setScreen({ name: 'start' });
+      if (current.name !== 'play') return;
+      if (window.confirm(leaveRoundQuestion)) {
+        setScreen({ name: 'start' });
+      } else {
+        window.history.pushState({ hookedRound: true }, '');
+        roundEntryRef.current = true;
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [leaveRoundQuestion]);
+  // Leaving a round in the app: take its history entry back out, so Back isn't a dead press.
+  const dropRoundEntry = () => {
+    if (!roundEntryRef.current) return;
+    roundEntryRef.current = false;
+    window.history.back();
+  };
+
   // The header wordmark goes back to the start screen. Mid-round, check first.
   const goToStart = () => {
-    if (
-      screen.name === 'play' &&
-      !window.confirm(
-        session
-          ? 'Go back to the start? Your answers so far are saved for your class, and Start picks up where you left off.'
-          : 'Go back to the start? The answers in this round won’t be kept.',
-      )
-    ) {
+    if (screen.name === 'play' && !window.confirm(leaveRoundQuestion)) {
       return;
     }
+    if (screen.name === 'play' || screen.name === 'results') dropRoundEntry();
     // Leaving the dashboard or guide: drop their hash so a reload lands on the start screen too.
     if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
     setScreen({ name: 'start' });
