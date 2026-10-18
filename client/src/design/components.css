@@ -182,6 +182,18 @@
     transform: translateY(var(--hk-control-lift));
   }
 
+  /* A projector view in full screen: the card's colors, centered, filling the screen. */
+  .hk-projector:fullscreen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: auto;
+    padding: 4vh 5vw;
+    border-radius: 0;
+    background: var(--hk-surface);
+    color: var(--hk-card-ink);
+  }
+
   /* Text fields, always on a card. */
   .hk-input {
     min-height: 3rem;

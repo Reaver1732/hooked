@@ -5,7 +5,7 @@ import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { CLASS_IDLE_DAYS } from '../../../shared/api.ts';
 import { ChalkboardIcon, LockIcon } from '../components/icons.tsx';
 import { ScreenHeader } from '../components/ScreenHeader.tsx';
-import { BackButton, button, IconTile, Notice, StepNumber, TextButton } from '../design/parts.tsx';
+import { BackButton, button, FullScreenButton, IconTile, Notice, StepNumber, TextButton } from '../design/parts.tsx';
 
 type Props = {
   onBack: () => void;
@@ -17,6 +17,8 @@ type Props = {
 
 export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreated }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const projectorRef = useRef<HTMLDivElement>(null);
+  const [projecting, setProjecting] = useState(false);
   const [created, setCreated] = useState<TeacherCredentials | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -97,15 +99,19 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
   return (
     <section aria-labelledby="teacher-heading" className="flex flex-col gap-6">
       <BackButton onClick={onBack} />
-      <div className="hk-card px-5 py-8 sm:px-8">
+      <div ref={projectorRef} className="hk-card hk-projector px-5 py-8 sm:px-8">
         <ClassJoinPanel
           code={created.code}
+          large={projecting}
           heading={
             <h2 id="teacher-heading" ref={headingRef} tabIndex={-1} className="hk-display text-center text-title outline-none">
               Scan to join, or enter the class code
             </h2>
           }
         />
+        <div className="mt-6 flex justify-center">
+          <FullScreenButton target={projectorRef} onChange={setProjecting} />
+        </div>
       </div>
 
       <section aria-labelledby="dashboard-link-heading" className="hk-card border-4 border-primary p-5 sm:p-6">

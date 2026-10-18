@@ -5,7 +5,7 @@ import { api, ApiRequestError } from '../class/api.ts';
 import { dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
 import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { ClockIcon, FlagIcon, FishIcon, LockIcon, TrashIcon, UsersIcon } from '../components/icons.tsx';
-import { button, IconTile, Notice, TextButton } from '../design/parts.tsx';
+import { button, FullScreenButton, IconTile, Notice, TextButton } from '../design/parts.tsx';
 
 const REFRESH_MS = 5000;
 const WARN_MS = 24 * 60 * 60 * 1000;
@@ -59,6 +59,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const playersHeadingRef = useRef<HTMLHeadingElement>(null);
   const qrDialogRef = useRef<HTMLDialogElement>(null);
+  const projectorRef = useRef<HTMLDivElement>(null);
   const onGoneRef = useRef(onGone);
   onGoneRef.current = onGone;
   const targetId = useId();
@@ -250,12 +251,17 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       </div>
 
       {/* Projector view. A native modal dialog: Escape closes it and focus returns to the button. */}
+      {/* The backdrop is opaque: at 85% the player list behind it was readable on a projector. */}
       <dialog
         ref={qrDialogRef}
         aria-labelledby="qr-dialog-heading"
-        className="hk-card m-auto w-[min(64rem,calc(100vw-1rem))] max-w-none p-0 backdrop:bg-canvas/85"
+        // Closing while in full screen would leave a blank screen up; leave full screen too.
+        onClose={() => {
+          if (document.fullscreenElement) void document.exitFullscreen();
+        }}
+        className="hk-card m-auto w-[min(64rem,calc(100vw-1rem))] max-w-none p-0 backdrop:bg-canvas"
       >
-        <div className="px-5 py-6 sm:px-10 sm:py-8">
+        <div ref={projectorRef} className="hk-projector px-5 py-6 sm:px-10 sm:py-8">
           <ClassJoinPanel
             code={code}
             large
@@ -264,11 +270,14 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                 <h2 id="qr-dialog-heading" className="hk-display text-title">
                   Scan to join, or enter the class code
                 </h2>
-                <form method="dialog">
-                  <button type="submit" className={button('secondary', 'sm')}>
-                    Close
-                  </button>
-                </form>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <FullScreenButton target={projectorRef} />
+                  <form method="dialog">
+                    <button type="submit" className={button('secondary', 'sm')}>
+                      Close
+                    </button>
+                  </form>
+                </div>
               </div>
             }
           />

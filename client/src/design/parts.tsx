@@ -1,5 +1,5 @@
 // Building blocks shared by the screens, styled only with design-system tokens.
-import type { ReactNode, Ref } from 'react';
+import { useEffect, useState, type ReactNode, type Ref, type RefObject } from 'react';
 import { FLAG_LABELS } from '../../../shared/flags.ts';
 import type { Message } from '../../../shared/messages.ts';
 import type { TeacherCredentials } from '../class/dashboardLink.ts';
@@ -106,6 +106,42 @@ export function Situation({ text }: { text: string }) {
       <span className="font-bold text-accent">Situation: </span>
       {text}
     </p>
+  );
+}
+
+/**
+ * Puts a projector view in full screen, hiding the browser's tabs, bookmarks and address bar.
+ * Only shown where the browser allows it (iPhones don't). Escape leaves full screen.
+ */
+export function FullScreenButton({
+  target,
+  onChange,
+}: {
+  target: RefObject<HTMLElement | null>;
+  onChange?: (on: boolean) => void;
+}) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const sync = () => {
+      const now = document.fullscreenElement !== null && document.fullscreenElement === target.current;
+      setOn(now);
+      onChange?.(now);
+    };
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, [target, onChange]);
+  if (!document.fullscreenEnabled) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (on) void document.exitFullscreen();
+        else target.current?.requestFullscreen().catch(() => {});
+      }}
+      className={button('secondary', 'sm')}
+    >
+      {on ? 'Exit full screen' : 'Full screen'}
+    </button>
   );
 }
 

@@ -23,8 +23,8 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     title: 'Project the QR code',
     body: (
       <>
-        Students scan the code, or go to the link and type the class code, then pick a nickname. Ask for nicknames, not
-        full names. Names appear on your dashboard as students join, and you can remove any that aren’t okay.
+        Press <strong>Full screen</strong> under the QR code so only the code shows, not your browser. Students scan the
+        code, or go to the link and type the class code, then pick a nickname. Ask for nicknames, not full names. Names appear on your dashboard as students join, and you can remove any that aren’t okay.
       </>
     ),
   },
