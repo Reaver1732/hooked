@@ -182,8 +182,22 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       const { rejoinCode } = await api.resetRejoinCode(code, teacherKey, p.id);
       setNewCode({ playerId: p.id, nickname: p.nickname, code: rejoinCode });
     } catch (err) {
+      if (await playerAlreadyGone(err, `${p.nickname} is no longer in this class.`)) return;
       handleError(err, 'Couldn’t reset that code.');
     }
+  }
+
+  /**
+   * A 404 from a player action usually means just that player is gone (removed on another
+   * device, or a double click), not the class. Refresh to tell them apart: if the class is
+   * gone the refresh says so; otherwise the row disappears and this says what happened.
+   */
+  async function playerAlreadyGone(err: unknown, message: string): Promise<boolean> {
+    if (!(err instanceof ApiRequestError && err.status === 404)) return false;
+    await refresh();
+    setNotice(message);
+    playersHeadingRef.current?.focus();
+    return true;
   }
 
   async function deleteClass() {
@@ -205,6 +219,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       setNotice(`Removed ${nickname}.`);
       playersHeadingRef.current?.focus();
     } catch (err) {
+      if (await playerAlreadyGone(err, `${nickname} was already removed.`)) return;
       handleError(err, 'Couldn’t remove that player.');
     }
   }
