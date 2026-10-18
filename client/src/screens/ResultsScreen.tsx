@@ -83,7 +83,7 @@ export function ResultsScreen(props: Props) {
         {classCode && !classSaving && (
           <p className="relative mt-4 max-w-xl text-small text-ink-muted">
             Your answers went to class <span className="font-code font-bold text-ink">{classCode}</span>. Your teacher sees
-            your first run and your best one, and your best one counts for passing, so you can play again to beat it.
+            your first score and your best one. Play again to try to beat your best.
           </p>
         )}
         <div className="relative mt-6 flex flex-wrap gap-4">
