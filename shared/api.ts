@@ -38,6 +38,7 @@ export type ResetRejoinCodeResponse = { rejoinCode: string };
 export type UpdateClassRequest = { targetPercent: number };
 /** Returned when the teacher keeps the class alive (dashboard load or "Keep this class"). */
 export type KeepClassResponse = { expiresAt: string };
+export type NewTeacherKeyResponse = { teacherKey: string };
 
 export type Score = { correct: number; total: number; percent: number };
 

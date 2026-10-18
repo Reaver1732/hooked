@@ -14,7 +14,8 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         On the start screen choose <strong>I’m a teacher</strong>, then <strong>Create a class</strong>. Open the
-        dashboard link in a tab only you can see, and save it somewhere safe: it can’t be recovered.
+        dashboard link in a tab only you can see, and save it somewhere safe: it can’t be recovered. If it leaks, use{' '}
+        <strong>Get a new link</strong> on the dashboard; the old one stops working and your results stay.
       </>
     ),
   },

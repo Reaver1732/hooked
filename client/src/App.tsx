@@ -17,6 +17,7 @@ import {
   rememberActiveSession,
   rememberClass,
   rememberPlayer,
+  storedClasses,
 } from './class/storage.ts';
 import type { Answer } from './game/types.ts';
 import { Notice, Wordmark } from './design/parts.tsx';
@@ -501,6 +502,12 @@ export default function App() {
             onGone={() => {
               forgetClass(screen.credentials.code);
               forgetDashboardKey(screen.credentials.code);
+            }}
+            onNewKey={(credentials) => {
+              const saved = storedClasses().find((c) => c.code === credentials.code);
+              if (saved) rememberClass({ ...saved, teacherKey: credentials.teacherKey });
+              rememberDashboardKey(credentials);
+              setScreen({ name: 'dashboard', credentials });
             }}
           />
         )}

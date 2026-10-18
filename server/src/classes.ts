@@ -13,6 +13,7 @@ import {
   type CreateClassResponse,
   type JoinClassResponse,
   type KeepClassResponse,
+  type NewTeacherKeyResponse,
   type PlayerProgress,
   type RejoinResponse,
   type ResetRejoinCodeResponse,
@@ -536,6 +537,22 @@ classesRouter.post('/classes/:code/keep', async (req, res) => {
   const cls = await requireTeacher(req);
   const updated = await touchClass(cls.id);
   res.json({ expiresAt: expiresAt(updated ?? cls.lastActivityAt) } satisfies KeepClassResponse);
+});
+
+/**
+ * Teacher: replace a leaked dashboard link without losing results. The old key stops working
+ * at once, on every device. Only replaces the key just checked, so two at once can't both win.
+ */
+classesRouter.post('/classes/:code/teacher-key', async (req, res) => {
+  const cls = await requireTeacher(req);
+  parse(emptyBody, req.body ?? {});
+  const teacherKey = randomBytes(32).toString('base64url');
+  const { count } = await db().class.updateMany({
+    where: { id: cls.id, teacherKeyHash: cls.teacherKeyHash },
+    data: { teacherKeyHash: hashKey(teacherKey) },
+  });
+  if (count === 0) throw new HttpError(409, 'The dashboard link was just changed somewhere else. Use the newest link.');
+  res.json({ teacherKey } satisfies NewTeacherKeyResponse);
 });
 
 /** Teacher: delete the class; players and answers cascade. */

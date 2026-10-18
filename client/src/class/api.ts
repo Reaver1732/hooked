@@ -5,6 +5,7 @@ import type {
   CreateClassResponse,
   JoinClassResponse,
   KeepClassResponse,
+  NewTeacherKeyResponse,
   PlayerProgress,
   RejoinResponse,
   ResetRejoinCodeResponse,
@@ -95,6 +96,13 @@ export const api = {
   /** Resets the inactivity timer. Called on the dashboard's first load and by "Keep this class". */
   keepClass: (code: string, teacherKey: string) =>
     request<KeepClassResponse>(`/classes/${encodeURIComponent(code)}/keep`, {
+      method: 'POST',
+      headers: teacherHeaders(teacherKey),
+    }),
+
+  /** Replaces the teacher key; the old dashboard link stops working everywhere. */
+  newTeacherKey: (code: string, teacherKey: string) =>
+    request<NewTeacherKeyResponse>(`/classes/${encodeURIComponent(code)}/teacher-key`, {
       method: 'POST',
       headers: teacherHeaders(teacherKey),
     }),

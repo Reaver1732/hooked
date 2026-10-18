@@ -52,10 +52,15 @@ type Props = {
   credentials: TeacherCredentials;
   /** The class was deleted or has expired (so this browser can forget it). */
   onGone: () => void;
+  /** The teacher got a new dashboard link; the old key no longer works. */
+  onNewKey: (credentials: TeacherCredentials) => void;
 };
 
-export function DashboardScreen({ credentials, onGone }: Props) {
+export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
   const { code, teacherKey } = credentials;
+  // A refresh sent with the old key can land after a new link was made; ignore its answer.
+  const keyRef = useRef(teacherKey);
+  keyRef.current = teacherKey;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const playersHeadingRef = useRef<HTMLHeadingElement>(null);
   const qrDialogRef = useRef<HTMLDialogElement>(null);
@@ -84,11 +89,13 @@ export function DashboardScreen({ credentials, onGone }: Props) {
 
   const refresh = useCallback(async () => {
     try {
-      setSummary(await api.summary(code, teacherKey));
+      const next = await api.summary(code, teacherKey);
+      if (keyRef.current !== teacherKey) return;
+      setSummary(next);
       setUpdatedAt(new Date());
       setError(null);
     } catch (err) {
-      handleError(err, 'Couldn’t load the class.');
+      if (keyRef.current === teacherKey) handleError(err, 'Couldn’t load the class.');
     }
   }, [code, teacherKey, handleError]);
 
@@ -155,6 +162,30 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       setCopied(false);
       setLinkShown(true);
       setNotice('Couldn’t copy automatically, so the link is shown below. Select it and copy it somewhere safe.');
+    }
+  }
+
+  const [renewing, setRenewing] = useState(false);
+  async function newLink() {
+    if (renewing) return; // not `disabled`: that would drop keyboard focus
+    if (
+      !window.confirm(
+        'Get a new dashboard link? The current link stops working everywhere, including other tabs and devices that have it open. Results are kept.',
+      )
+    ) {
+      return;
+    }
+    setRenewing(true);
+    try {
+      const { teacherKey: next } = await api.newTeacherKey(code, teacherKey);
+      onNewKey({ code, teacherKey: next });
+      setCopied(false);
+      setLinkShown(true);
+      setNotice('New dashboard link ready, shown below. The old one no longer works. Copy this one somewhere safe.');
+    } catch (err) {
+      handleError(err, 'Couldn’t make a new link.');
+    } finally {
+      setRenewing(false);
     }
   }
 
@@ -360,9 +391,14 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                 <LockIcon className="size-5 shrink-0 text-card-ink" />
                 Anyone with this link can manage your class. Keep it private.
               </p>
-              <button type="button" onClick={copyLink} className={button('secondary', 'sm')}>
-                {copied ? 'Copied' : 'Copy dashboard link'}
-              </button>
+              <div className="flex flex-wrap items-center gap-4">
+                <button type="button" onClick={copyLink} className={button('secondary', 'sm')}>
+                  {copied ? 'Copied' : 'Copy dashboard link'}
+                </button>
+                <button type="button" onClick={newLink} aria-busy={renewing} className="hk-link text-small">
+                  {renewing ? 'Getting a new link…' : 'Get a new link'}
+                </button>
+              </div>
               <p aria-live="polite" className="sr-only">
                 {copied ? 'Dashboard link copied' : ''}
               </p>
