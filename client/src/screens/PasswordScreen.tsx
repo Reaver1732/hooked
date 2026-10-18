@@ -201,7 +201,9 @@ export function PasswordScreen({ onBack }: { onBack: () => void }) {
 
 function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> }) {
   const prefix = check.hash.slice(0, PREFIX_LENGTH);
-  const rest = check.hash.slice(PREFIX_LENGTH);
+  // The rest of the hash is never shown: an unsalted SHA-1 of a breached password can be
+  // looked up, so a screenshot or a projector would give the password away.
+  const restLength = check.hash.length - PREFIX_LENGTH;
   return (
     <section aria-labelledby="left-device-heading" className="hk-card p-5 sm:p-6">
       <h3 id="left-device-heading" className="hk-display text-heading">
@@ -210,12 +212,16 @@ function LeftDevicePanel({ check }: { check: Exclude<Check, { status: 'idle' }> 
       <p className="mt-3 text-small text-card-ink-muted">Sent to Have I Been Pwned:</p>
       <p className="mt-1 font-code text-title font-bold tracking-wider">{prefix}</p>
 
-      <p className="mt-4 text-small text-card-ink-muted">The password’s full SHA-1 hash:</p>
+      <p className="mt-4 text-small text-card-ink-muted">
+        The password’s SHA-1 hash (the other {restLength} characters never leave this device):
+      </p>
       <p className="mt-1 font-code text-small break-all">
         <mark className="rounded-tight bg-primary px-0.5 text-on-primary">{prefix}</mark>
         <span className="sr-only"> (sent) </span>
-        <span className="text-card-ink-muted">{rest}</span>
-        <span className="sr-only"> (stayed on your device)</span>
+        <span aria-hidden className="text-card-ink-muted">
+          {'•'.repeat(restLength)}
+        </span>
+        <span className="sr-only"> and {restLength} more characters that stayed on your device</span>
       </p>
       <div aria-hidden className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-micro text-card-ink-muted">
         <span className="flex items-center gap-2">
