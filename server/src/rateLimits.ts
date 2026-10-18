@@ -144,8 +144,9 @@ export const playerLimit = limiter({
 });
 
 /**
- * Lookups of player ids that don't exist, per IP. loadPlayer only calls this on the
- * not-found path, so it can slow down made-up ids without ever blocking a real player.
+ * Requests for player ids that don't exist (progress, attempt starts, answers), per IP. Only
+ * the not-found path calls this, so it can slow down made-up ids without ever blocking a real
+ * player.
  */
 export const unknownPlayerLimit = limiter({
   name: 'unknown-player',

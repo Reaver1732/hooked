@@ -289,7 +289,13 @@ async function validateAnswer(req: Request, res: Response, next: NextFunction) {
     where: { id: body.playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
     select: { id: true, classId: true, attempts: { where: { id: body.attemptId }, select: { finishedAt: true } } },
   });
-  if (!player) throw new HttpError(404, 'Player not found. You may have been removed from the class.');
+  if (!player) {
+    // Made-up player ids go through the same per-IP limit as unknown-player lookups (only on
+    // this failure path, so real players are never counted).
+    return unknownPlayerLimit(req, res, () =>
+      next(new HttpError(404, 'Player not found. You may have been removed from the class.')),
+    );
+  }
   const attempt = player.attempts[0];
   if (!attempt) throw new HttpError(409, 'That attempt doesn’t belong to you. Go back to the start to keep playing.');
   if (attempt.finishedAt) throw new HttpError(409, 'That attempt is already finished. Press Play again to start a new one.');
