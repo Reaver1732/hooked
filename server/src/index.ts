@@ -111,7 +111,10 @@ if (clientDist) {
   });
 }
 
-app.listen(PORT, (err) => {
+// Locally, listen on this machine only: on campus Wi-Fi others could otherwise reach the dev API.
+// On Railway, listen on every interface (Node's default) so its proxy can reach the app.
+const HOST = process.env.HOST ?? (process.env.RAILWAY_ENVIRONMENT_ID ? undefined : '127.0.0.1');
+const onListen = (err?: Error) => {
   // Express 5 hands listen errors (port in use, no permission) to this callback instead of
   // throwing; without this check a clash logged "listening" and exited with status 0.
   if (err) {
@@ -121,7 +124,9 @@ app.listen(PORT, (err) => {
   }
   console.log(`Server listening on http://localhost:${PORT}`);
   startClassCleanup();
-});
+};
+if (HOST) app.listen(PORT, HOST, onListen);
+else app.listen(PORT, onListen);
 
 function findUp(start: string, relative: string): string | null {
   for (let dir = start; ; dir = path.dirname(dir)) {
