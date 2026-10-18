@@ -101,6 +101,8 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   /** A new player's rejoin code, shown once on the start screen. */
   const [rejoinCode, setRejoinCode] = useState<string | null>(null);
+  /** Answers still being sent to the class (Results waits on these before saying they arrived). */
+  const [pendingSends, setPendingSends] = useState(0);
   /** The class attempt answers are reported to (set when a class round starts). */
   const attemptIdRef = useRef<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -236,24 +238,29 @@ export default function App() {
         messageId: answer.message.id,
         choice: answer.guessedPhish ? ('phish' as const) : ('legit' as const),
       };
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          await api.submitAnswer(body);
-          return;
-        } catch (err) {
-          if (err instanceof ApiRequestError && err.status === 404) {
-            await explainMissingPlayer(session.code, err.message);
+      setPendingSends((n) => n + 1);
+      try {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            await api.submitAnswer(body);
             return;
+          } catch (err) {
+            if (err instanceof ApiRequestError && err.status === 404) {
+              await explainMissingPlayer(session.code, err.message);
+              return;
+            }
+            // Other 4xx won't get better on retry.
+            if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
+              setSyncError(err.message);
+              return;
+            }
+            await sleep(1000 * 2 ** attempt);
           }
-          // Other 4xx won't get better on retry.
-          if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
-            setSyncError(err.message);
-            return;
-          }
-          await sleep(1000 * 2 ** attempt);
         }
+        setSyncError('Couldn’t send an answer to your class. Check your connection.');
+      } finally {
+        setPendingSends((n) => n - 1);
       }
-      setSyncError('Couldn’t send an answer to your class. Check your connection.');
     },
     [session, explainMissingPlayer],
   );
@@ -333,7 +340,10 @@ export default function App() {
             answers={screen.answers}
             quick={screen.quick}
             totalMessages={messages.length}
-            classCode={screen.quick ? undefined : session?.code}
+            // Only claim the answers reached the class when nothing went wrong this round
+            // (every failure path sets syncError or ends the session).
+            classCode={screen.quick || syncError ? undefined : session?.code}
+            classSaving={pendingSends > 0}
             onPlayAgain={play}
             onPasswordCheck={() => openPasswordCheck(screen)}
           />

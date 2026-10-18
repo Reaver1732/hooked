@@ -8,8 +8,10 @@ type Props = {
   answers: Answer[];
   onPlayAgain: () => void;
   onPasswordCheck: () => void;
-  /** Set when playing in a class. */
+  /** Set when playing in a class and this round's answers reached it. */
   classCode?: string;
+  /** Some of this round's answers are still on their way to the class. */
+  classSaving?: boolean;
   /** This was the 5-message quick round; offers the full game instead of a replay. */
   quick?: boolean;
   /** How many messages the full game has. */
@@ -34,7 +36,8 @@ const HOOKED_STEPS: [string, string][] = [
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode, quick = false, totalMessages }: Props) {
+export function ResultsScreen(props: Props) {
+  const { answers, onPlayAgain, onPasswordCheck, classCode, classSaving = false, quick = false, totalMessages } = props;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -72,7 +75,12 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
             tricks scammers use.
           </p>
         )}
-        {classCode && (
+        {classCode && classSaving && (
+          <p className="relative mt-4 max-w-xl text-small text-ink-muted">
+            Sending your last answers to class <span className="font-code font-bold text-ink">{classCode}</span>…
+          </p>
+        )}
+        {classCode && !classSaving && (
           <p className="relative mt-4 max-w-xl text-small text-ink-muted">
             Your answers went to class <span className="font-code font-bold text-ink">{classCode}</span>. Your teacher sees
             your first run and your best one, and your best one counts for passing, so you can play again to beat it.
