@@ -70,7 +70,8 @@ export const rejoinClassLimit = limiter({
   windowMs: 10 * MINUTE,
   limit: 30,
   tooMany: 'Too many wrong rejoin codes for this class.',
-  keyGenerator: (req) => String(req.params.code ?? '').toUpperCase(),
+  // Same trim + uppercase as the route's codeSchema, so padded variants of a code share a bucket.
+  keyGenerator: (req) => String(req.params.code ?? '').trim().toUpperCase(),
   failuresOnly: true,
 });
 export const rejoinIpLimit = limiter({
