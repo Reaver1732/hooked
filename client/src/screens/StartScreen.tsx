@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { QUICK_ROUND_IDS } from '../../../shared/messages.ts';
 import type { TeacherCredentials } from '../class/dashboardLink.ts';
 import { FishIcon, FlagIcon, LockIcon, UsersIcon } from '../components/icons.tsx';
 import { ReefScene } from '../design/art.tsx';
@@ -9,6 +10,8 @@ import { useStartScreen } from './useStartScreen.ts';
 export type StartScreenProps = {
   session: ClassSession | null;
   onStart: () => void;
+  /** Starts the 5-message quick round; left out while in a class (solo only). */
+  onQuickStart?: () => void;
   onJoinClass: () => void;
   onLeaveClass: () => void;
   onTeacher: () => void;
@@ -21,7 +24,7 @@ export type StartScreenProps = {
 };
 
 export function StartScreen(props: StartScreenProps) {
-  const { session, onStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck } = props;
+  const { session, onStart, onQuickStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck } = props;
   const { rejoinCode, onDismissRejoinCode, onOpenDashboard } = props;
   const { joinRef, headingRef, rejoinRef, classes } = useStartScreen({ session, rejoinCode });
 
@@ -48,10 +51,17 @@ export function StartScreen(props: StartScreenProps) {
             Real-looking emails, texts, and DMs. Decide which are phish and which are legit, then see the red flags you
             missed.
           </p>
-          <button type="button" onClick={onStart} className={`${button('primary', 'xl')} mt-8`}>
-            Start
-            <span aria-hidden>→</span>
-          </button>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+            <button type="button" onClick={onStart} className={button('primary', 'xl')}>
+              Start
+              <span aria-hidden>→</span>
+            </button>
+            {onQuickStart && (
+              <button type="button" onClick={onQuickStart} className={button('secondary', 'lg')}>
+                Quick round ({QUICK_ROUND_IDS.length} messages)
+              </button>
+            )}
+          </div>
           <p className="mt-4 text-small text-ink-muted">
             {session ? (
               <>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { messages, type Message } from '../../shared/messages.ts';
+import { messages, quickRoundMessages, type Message } from '../../shared/messages.ts';
 import { api, ApiRequestError } from './class/api.ts';
 import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
 import { takeJoinParam } from './class/joinLink.ts';
@@ -17,8 +17,8 @@ import { TeacherScreen } from './screens/TeacherScreen.tsx';
 
 type GameScreen =
   | { name: 'start' }
-  | { name: 'play'; deck: Message[]; initialAnswers?: Answer[] }
-  | { name: 'results'; answers: Answer[] };
+  | { name: 'play'; deck: Message[]; initialAnswers?: Answer[]; quick?: boolean }
+  | { name: 'results'; answers: Answer[]; quick?: boolean };
 
 type Screen =
   | GameScreen
@@ -36,6 +36,11 @@ function initialScreen(): Screen {
   // A join link or QR code: <site>/?join=CODE
   const joinCode = takeJoinParam();
   if (joinCode) return { name: 'join', initialCode: joinCode };
+
+  // <site>/?quick=1 starts the 5-message quick round (solo only).
+  if (new URLSearchParams(window.location.search).get('quick') === '1') {
+    return { name: 'play', deck: quickRoundMessages(), quick: true };
+  }
 
   // Dev-only preview: ?msg=<id> opens that message directly. import.meta.env.DEV is
   // replaced with `false` in production builds, so this whole branch is dropped.
@@ -163,6 +168,15 @@ export default function App() {
     if (initialAnswers.length >= messages.length) setScreen({ name: 'results', answers: initialAnswers });
     else setScreen({ name: 'play', deck: messages, initialAnswers });
   };
+  // The quick round is solo only: no attempt, nothing reported, and never offered in a class.
+  const playQuick = () => {
+    if (session) return;
+    attemptIdRef.current = null;
+    setSyncError(null);
+    setNotice(null);
+    setRound((r) => r + 1);
+    setScreen({ name: 'play', deck: quickRoundMessages(), quick: true });
+  };
   const openPasswordCheck = (back: GameScreen) => setScreen({ name: 'password', back });
   const openGuide = (back: Screen) => setScreen({ name: 'guide', back });
 
@@ -223,6 +237,7 @@ export default function App() {
   const startProps: StartScreenProps = {
     session,
     onStart: play,
+    onQuickStart: session ? undefined : playQuick,
     onJoinClass: () => setScreen({ name: 'join' }),
     onLeaveClass: () => {
       // Forget the player too, so the next person on a shared browser isn't offered
@@ -247,8 +262,8 @@ export default function App() {
       ? {
           deck: screen.deck,
           initialAnswers: screen.initialAnswers,
-          onAnswer: session ? reportAnswer : undefined,
-          onFinish: (answers: Answer[]) => setScreen({ name: 'results', answers }),
+          onAnswer: session && !screen.quick ? reportAnswer : undefined,
+          onFinish: (answers: Answer[]) => setScreen({ name: 'results', answers, quick: screen.quick }),
         }
       : null;
 
@@ -283,7 +298,9 @@ export default function App() {
         {screen.name === 'results' && (
           <ResultsScreen
             answers={screen.answers}
-            classCode={session?.code}
+            quick={screen.quick}
+            totalMessages={messages.length}
+            classCode={screen.quick ? undefined : session?.code}
             onPlayAgain={play}
             onPasswordCheck={() => openPasswordCheck(screen)}
           />

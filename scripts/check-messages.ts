@@ -3,7 +3,8 @@
 // - only emails may have a subject or attachments (texts and DMs never show them)
 // - each highlight.match must appear exactly once in from / subject / rendered body /
 //   attachment names
-import { messages, type Message } from '../shared/messages.ts';
+// - every quick-round id must name a message, once
+import { messages, QUICK_ROUND_IDS, type Message } from '../shared/messages.ts';
 import { parseBody, renderBodyText } from '../shared/linkTokens.ts';
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -58,6 +59,13 @@ for (const m of messages) {
     const n = fields.reduce((sum, f) => sum + countOccurrences(f, h.match), 0);
     if (n !== 1) errors.push(`[${m.id}] "${h.match}" found ${n} times (expected exactly 1)`);
   }
+}
+
+const quickSeen = new Set<string>();
+for (const id of QUICK_ROUND_IDS) {
+  if (!seenIds.has(id)) errors.push(`[quick round] "${id}" doesn't match any message id`);
+  if (quickSeen.has(id)) errors.push(`[quick round] "${id}" is listed twice`);
+  quickSeen.add(id);
 }
 
 if (errors.length) {

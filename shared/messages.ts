@@ -518,3 +518,17 @@ export const messages: Message[] = [
     ],
   },
 ];
+
+// The quick round: five of the messages above, played in this order (a text, a text, a DM,
+// an email and an email; three phish and two legit). `npm run check:messages` fails if an
+// id here doesn't match a message.
+export const QUICK_ROUND_IDS = [
+  'package-fee-phish',
+  'snow-day-legit',
+  'hacked-friend-dm-phish',
+  'field-trip-legit',
+  'photo-zip-phish',
+];
+
+export const quickRoundMessages = (): Message[] =>
+  QUICK_ROUND_IDS.flatMap((id) => messages.filter((m) => m.id === id));

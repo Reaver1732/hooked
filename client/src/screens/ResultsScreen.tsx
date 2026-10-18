@@ -10,6 +10,10 @@ type Props = {
   onPasswordCheck: () => void;
   /** Set when playing in a class. */
   classCode?: string;
+  /** This was the 5-message quick round; offers the full game instead of a replay. */
+  quick?: boolean;
+  /** How many messages the full game has. */
+  totalMessages: number;
 };
 
 function titleFor(score: number, total: number): string {
@@ -30,7 +34,7 @@ const HOOKED_STEPS: [string, string][] = [
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode }: Props) {
+export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode, quick = false, totalMessages }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -62,6 +66,12 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
             ` and trusted ${legit.length - falseAlarms} of ${legit.length} legit ${plural(legit.length, 'message', 'messages')}`}
           .
         </p>
+        {quick && (
+          <p className="relative mt-4 max-w-xl text-small text-ink-muted">
+            That was the quick round: {answers.length} of the {totalMessages} messages. Play all {totalMessages} to see more
+            tricks scammers use.
+          </p>
+        )}
         {classCode && (
           <p className="relative mt-4 max-w-xl text-small text-ink-muted">
             Your answers went to class <span className="font-code font-bold text-ink">{classCode}</span>. Your best run
@@ -70,7 +80,7 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
         )}
         <div className="relative mt-6 flex flex-wrap gap-4">
           <button type="button" onClick={onPlayAgain} className={button('primary', 'lg')}>
-            Play again
+            {quick ? `Play all ${totalMessages}` : 'Play again'}
           </button>
           <button type="button" onClick={onPasswordCheck} className={button('secondary', 'lg')}>
             Check a password
