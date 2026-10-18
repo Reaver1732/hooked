@@ -26,7 +26,7 @@ test('a port clash exits with status 1 and a clear message', async () => {
     const timer = setTimeout(() => {
       child.kill();
       resolve(null);
-    }, 10_000);
+    }, 30_000); // generous: the full suite starts ~20 servers at once
     child.once('exit', (c) => {
       clearTimeout(timer);
       resolve(c);

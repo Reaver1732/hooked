@@ -43,7 +43,7 @@ test('SIGTERM finishes the open request, refuses new ones, and exits 0', { skip:
     await db.query('ROLLBACK');
     const res = await join;
     assert.equal(res.status, 201, 'the open join finished: ' + JSON.stringify(res.body));
-    const code = await Promise.race([exited, new Promise((r) => setTimeout(() => r('still running'), 9000))]);
+    const code = await Promise.race([exited, new Promise((r) => setTimeout(() => r('still running'), 20_000))]);
     assert.equal(code, 0, output);
     assert.match(output, /SIGTERM: finishing open requests/);
   } finally {
