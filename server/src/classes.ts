@@ -334,7 +334,19 @@ async function validateAnswer(req: Request, res: Response, next: NextFunction) {
   }
   const attempt = player.attempts[0];
   if (!attempt) throw new HttpError(409, 'That attempt doesn’t belong to you. Go back to the start to keep playing.');
-  if (attempt.finishedAt) throw new HttpError(409, 'That attempt is already finished. Press Play again to start a new one.');
+  if (attempt.finishedAt) {
+    // A retry of an answer that did land (often the round's last one, resent after the round
+    // ended) gets its original grading back, so the next round doesn't show a false error.
+    const existing = await db().answer.findUnique({
+      where: { attemptId_messageId: { attemptId: body.attemptId, messageId: body.messageId } },
+      select: { correct: true },
+    });
+    if (existing) {
+      res.json({ correct: existing.correct, alreadyAnswered: true, attemptFinished: true } satisfies SubmitAnswerResponse);
+      return;
+    }
+    throw new HttpError(409, 'That attempt is already finished. Press Play again to start a new one.');
+  }
   res.locals.playerId = player.id;
   res.locals.classId = player.classId;
   res.locals.answer = { ...body, message } satisfies ValidAnswer;
