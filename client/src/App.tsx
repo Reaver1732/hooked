@@ -3,7 +3,15 @@ import { messages, quickRoundMessages, type Message } from '../../shared/message
 import { api, ApiRequestError } from './class/api.ts';
 import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
 import { takeJoinParam } from './class/joinLink.ts';
-import { forgetClass, forgetPlayer, rememberClass, rememberPlayer } from './class/storage.ts';
+import {
+  activeSession,
+  forgetActiveSession,
+  forgetClass,
+  forgetPlayer,
+  rememberActiveSession,
+  rememberClass,
+  rememberPlayer,
+} from './class/storage.ts';
 import type { Answer } from './game/types.ts';
 import { Notice, Wordmark } from './design/parts.tsx';
 import { DashboardScreen } from './screens/DashboardScreen.tsx';
@@ -37,8 +45,8 @@ function initialScreen(): Screen {
   const joinCode = takeJoinParam();
   if (joinCode) return { name: 'join', initialCode: joinCode };
 
-  // <site>/?quick=1 starts the 5-message quick round (solo only).
-  if (new URLSearchParams(window.location.search).get('quick') === '1') {
+  // <site>/?quick=1 starts the 5-message quick round (solo only, so not when this tab is in a class).
+  if (new URLSearchParams(window.location.search).get('quick') === '1' && !activeSession()) {
     return { name: 'play', deck: quickRoundMessages(), quick: true };
   }
 
@@ -87,7 +95,8 @@ function resumedAnswers(saved: { messageId: string; choice: 'phish' | 'legit' }[
 export default function App() {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [round, setRound] = useState(0);
-  const [session, setSession] = useState<ClassSession | null>(null);
+  // Restored from this tab's sessionStorage, so a refresh stays in the class.
+  const [session, setSession] = useState<ClassSession | null>(activeSession);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   /** A new player's rejoin code, shown once on the start screen. */
@@ -109,6 +118,13 @@ export default function App() {
     if (document.activeElement && document.activeElement !== document.body) return;
     mainRef.current?.querySelector<HTMLElement>('h1[tabindex], h2[tabindex]')?.focus({ preventScroll: true });
   }, [screen]);
+
+  // Keep this tab's stored session in step: joining saves it; Leave class, a closed class,
+  // or a "player not found" all clear `session`, and that clears it here too.
+  useEffect(() => {
+    if (session) rememberActiveSession(session);
+    else forgetActiveSession();
+  }, [session]);
 
   // A dashboard link pasted into an already-open tab only changes the hash.
   useEffect(() => {
