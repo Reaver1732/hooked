@@ -223,21 +223,24 @@ async function loadPlayer(req: Request, res: Response, next: NextFunction) {
 /** A player's own progress. Knowing the (random) player id is what scopes it. */
 classesRouter.get('/players/:playerId', loadPlayer, playerLimit, async (req, res) => {
   const playerId = parse(z.uuid(), req.params.playerId);
+  // Only the open attempt's answers and a count of finished ones: a player who replays a lot
+  // shouldn't make this load every answer they've ever given.
   const player = await db().player.findFirst({
     where: { id: playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
     include: {
       class: { select: { code: true } },
-      attempts: { orderBy: { startedAt: 'desc' }, include: { answers: attemptAnswers } },
+      attempts: { where: { finishedAt: null }, orderBy: { startedAt: 'desc' }, take: 1, include: { answers: attemptAnswers } },
+      _count: { select: { attempts: { where: { finishedAt: { not: null } } } } },
     },
   });
   if (!player) throw new HttpError(404, PLAYER_NOT_FOUND);
-  const current = player.attempts.find((a) => !a.finishedAt);
+  const current = player.attempts[0];
   res.set('Cache-Control', 'no-store').json({
     playerId: player.id,
     nickname: player.nickname,
     classCode: player.class.code,
     currentAttempt: current ? toProgress(current) : null,
-    finishedAttempts: player.attempts.filter((a) => a.finishedAt).length,
+    finishedAttempts: player._count.attempts,
   } satisfies PlayerProgress);
 });
 
