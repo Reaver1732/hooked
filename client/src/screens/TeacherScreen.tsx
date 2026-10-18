@@ -21,6 +21,9 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  // This screen is the projector view, so the dashboard key stays hidden until asked for.
+  const [showLink, setShowLink] = useState(false);
 
   useEffect(() => headingRef.current?.focus({ preventScroll: true }), [created]);
 
@@ -43,8 +46,12 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
     try {
       await navigator.clipboard.writeText(dashboardUrl(credentials));
       setCopied(true);
+      setCopyFailed(false);
     } catch {
+      // Without the clipboard, the teacher still needs a way to save the link.
       setCopied(false);
+      setCopyFailed(true);
+      setShowLink(true);
     }
   }
 
@@ -114,7 +121,17 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
           a shared computer, delete the class when you’re done or use a private window. Don’t project it or share it, and
           save it somewhere safe: it can’t be recovered.
         </p>
-        <p className="mt-4 rounded-chip bg-surface-muted px-3 py-2 font-code text-micro break-all">{dashboardUrl(created)}</p>
+        <p id="dashboard-link" className="mt-4 rounded-chip bg-surface-muted px-3 py-2 font-code text-micro break-all">
+          {showLink ? (
+            dashboardUrl(created)
+          ) : (
+            <>
+              {dashboardUrl({ ...created, teacherKey: '' })}
+              <span aria-hidden>••••••••••</span>
+              <span className="sr-only">(private key hidden)</span>
+            </>
+          )}
+        </p>
         <div className="mt-5 flex flex-wrap items-center gap-4">
           <a href={dashboardHash(created)} target="_blank" rel="noopener noreferrer" className={button('primary')}>
             Open dashboard in a new tab
@@ -122,12 +139,19 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
           <button type="button" onClick={() => copyLink(created)} className={button('secondary')}>
             {copied ? 'Copied' : 'Copy link'}
           </button>
+          <button type="button" onClick={() => setShowLink((v) => !v)} aria-controls="dashboard-link" className={button('secondary')}>
+            {showLink ? 'Hide link' : 'Show link'}
+          </button>
           <TextButton onClick={() => onOpenDashboard(created)} className="text-small">
             Open here instead
           </TextButton>
         </div>
-        <p aria-live="polite" className="sr-only">
-          {copied ? 'Dashboard link copied' : ''}
+        <p aria-live="polite" className="mt-3 text-small text-card-ink-muted empty:mt-0">
+          {copied
+            ? 'Dashboard link copied.'
+            : copyFailed
+              ? 'Couldn’t copy automatically, so the link is shown above. Select it and copy it somewhere safe.'
+              : ''}
         </p>
       </section>
     </section>
