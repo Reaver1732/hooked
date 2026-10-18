@@ -35,8 +35,10 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
       <>
         Each student sorts the messages into <strong>Phish</strong> or <strong>Legit</strong> and sees the red flags (or
         the signs it’s safe) after every answer. Fast finishers can play again or try the password check. Your dashboard
-        shows each student’s first score (before they’d seen any answers) and their best; Passed uses the best. If a student closes the tab, the join link picks up where they left off; on another device they use the
-        rejoin code they were shown when they joined (you can reset it from the dashboard).
+        shows each student’s first score (before they’d seen any answers) and their best; Passed uses the best. If a
+        student refreshes the page, they stay in the class. If they close the tab, the join link picks up where they left
+        off; on another device they use the rejoin code they were shown when they joined (you can reset it from the
+        dashboard).
       </>
     ),
   },
