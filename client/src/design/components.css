@@ -124,7 +124,8 @@
     font-size: var(--hk-text-title);
   }
 
-  /* The Phish and Legit buttons: data-variant="phish|legit", data-state="idle|chosen|faded". */
+  /* The Phish and Legit buttons: data-variant="phish|legit", data-state="idle|chosen|faded|right",
+     and data-correct on the chosen one. */
   .hk-answer {
     --ans-bg: var(--hk-bad);
     --ans-hover: var(--hk-bad-hover);
@@ -163,6 +164,14 @@
     box-shadow: 0 calc(var(--hk-control-lift) - var(--hk-control-press)) 0 var(--ans-edge);
   }
   .hk-answer[data-state="chosen"] {
+    cursor: default;
+  }
+  /* A wrong pick is dimmed so it doesn't look right; the right answer (data-state="right") keeps
+     full color, with a check and "Right answer". Both are disabled. */
+  .hk-answer[data-state="chosen"][data-correct="false"] {
+    opacity: 0.55;
+  }
+  .hk-answer[data-state="right"] {
     cursor: default;
   }
   /* The option not picked. It's disabled, so it's exempt from contrast minimums. */

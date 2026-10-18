@@ -129,7 +129,9 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
     <div role="group" aria-label="Is this message a phish or legit?" className="grid grid-cols-2 gap-4">
       {ANSWERS.map(({ variant, label, meaning, shortcut, guessedPhish, Icon }) => {
         const chosen = answer?.guessedPhish === guessedPhish;
-        const state = !answer ? 'idle' : chosen ? 'chosen' : 'faded';
+        const wrongPick = answer !== undefined && answer.guessedPhish !== answer.message.isPhish;
+        // After a wrong pick, the other button is the right answer: keep it bright and say so.
+        const state = !answer ? 'idle' : chosen ? 'chosen' : wrongPick ? 'right' : 'faded';
         return (
           <button
             key={variant}
@@ -137,6 +139,7 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
             className="hk-answer"
             data-variant={variant}
             data-state={state}
+            data-correct={chosen ? String(!wrongPick) : undefined}
             disabled={answer !== undefined}
             aria-keyshortcuts={shortcut}
             onClick={() => onChoose(guessedPhish)}
@@ -148,7 +151,16 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
             {/* The plain meaning, at every width: not every 12-year-old knows "phish" and "legit". */}
             <span className="font-body text-small font-bold">{meaning}</span>
             <span className="font-body text-micro">
-              {chosen ? 'Your answer' : <span className="hidden sm:inline">Press {shortcut}</span>}
+              {chosen ? (
+                'Your answer'
+              ) : state === 'right' ? (
+                <span className="inline-flex items-center gap-1 text-small font-bold">
+                  <CheckCircleIcon className="size-5" />
+                  Right answer
+                </span>
+              ) : (
+                <span className="hidden sm:inline">Press {shortcut}</span>
+              )}
             </span>
           </button>
         );
