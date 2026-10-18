@@ -11,7 +11,10 @@ type LimiterOptions = {
   tooMany: string;
   /** Defaults to the client IP (req.ip, correct because index.ts trusts Railway's proxies). */
   keyGenerator?: Options['keyGenerator'];
-  /** Count only requests that fail (4xx/5xx), e.g. wrong rejoin codes. */
+  /**
+   * Count only requests the client got wrong (4xx), e.g. wrong rejoin codes. Server errors
+   * (5xx, like a database outage) don't count, so an outage can't lock anyone out afterwards.
+   */
   failuresOnly?: boolean;
 };
 
@@ -24,6 +27,7 @@ function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = 
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     skipSuccessfulRequests: failuresOnly,
+    ...(failuresOnly && { requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode >= 500 }),
     ...(keyGenerator && { keyGenerator }),
     handler: (req, res, _next, options) => {
       const resetTime = (req as AugmentedRequest).rateLimit?.resetTime;
