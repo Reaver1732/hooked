@@ -148,13 +148,17 @@ export function DashboardScreen({ credentials, onGone }: Props) {
 
   async function saveTarget(e: FormEvent) {
     e.preventDefault();
-    const value = Number(targetDraft);
+    if (!summary) return;
+    // No draft means the field still shows the saved value, so save that.
+    const value = targetDraft === null ? summary.targetPercent : Number(targetDraft);
     if (!Number.isInteger(value) || value < 1 || value > 100) {
       setNotice('Passing score must be a whole number from 1 to 100.');
       return;
     }
     try {
       await api.setTargetPercent(code, teacherKey, value);
+      // Show the new value right away instead of the old one until the refresh lands.
+      setSummary((s) => s && { ...s, targetPercent: value });
       setTargetDraft(null);
       await refresh();
       setNotice(`Passing score set to ${value}%.`);
