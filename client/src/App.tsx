@@ -183,6 +183,12 @@ export default function App() {
           setSession(null);
           return;
         }
+        // The server said no for a reason (e.g. too many requests): say what it said and stay
+        // here, rather than blaming the connection and starting a round that won't count.
+        if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
+          setSyncError(err.message);
+          return;
+        }
         setSyncError('Couldn’t reach your class, so this round won’t count for it. Check your connection.');
       }
     }

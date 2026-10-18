@@ -81,10 +81,26 @@ export const rejoinIpLimit = limiter({
   failuresOnly: true,
 });
 
-/** Player progress lookups and attempt starts: generous, since a class shares one IP. */
+/**
+ * Player progress lookups and attempt starts, per player, so classmates on one network never
+ * share a budget and one device can't use it up for everyone. Must run after loadPlayer
+ * (classes.ts), which checks the player exists and sets res.locals.playerId.
+ */
 export const playerLimit = limiter({
   name: 'player',
   windowMs: 10 * MINUTE,
-  limit: 600,
+  limit: 60,
+  tooMany: 'Too many requests for this player.',
+  keyGenerator: (_req, res) => (res as Response).locals.playerId as string,
+});
+
+/**
+ * Lookups of player ids that don't exist, per IP. loadPlayer only calls this on the
+ * not-found path, so it can slow down made-up ids without ever blocking a real player.
+ */
+export const unknownPlayerLimit = limiter({
+  name: 'unknown-player',
+  windowMs: 10 * MINUTE,
+  limit: 100,
   tooMany: 'Too many requests from your network.',
 });

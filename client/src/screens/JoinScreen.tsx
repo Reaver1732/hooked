@@ -57,7 +57,11 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
         setSaved({ ...remembered, nickname: progress.nickname });
       },
       (err) => {
-        if (!cancelled && err instanceof ApiRequestError && err.status === 404) forgetPlayer(code);
+        if (cancelled) return;
+        if (err instanceof ApiRequestError && err.status === 404) forgetPlayer(code);
+        // Couldn't check right now (network, busy server): still offer to continue as the
+        // remembered player rather than pushing them to join again under a new name.
+        else setSaved(remembered);
       },
     );
     return () => {

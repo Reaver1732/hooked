@@ -22,7 +22,15 @@ import {
 import { mostMissedFlags } from '../../shared/flags.ts';
 import { messages, type Message } from '../../shared/messages.ts';
 import { getPrisma } from './db.ts';
-import { answerLimit, createClassLimit, joinClassLimit, playerLimit, rejoinClassLimit, rejoinIpLimit } from './rateLimits.ts';
+import {
+  answerLimit,
+  createClassLimit,
+  joinClassLimit,
+  playerLimit,
+  rejoinClassLimit,
+  rejoinIpLimit,
+  unknownPlayerLimit,
+} from './rateLimits.ts';
 import { Prisma, type PrismaClient } from './generated/prisma/client.ts';
 
 const messagesById = new Map(messages.map((m) => [m.id, m]));
@@ -194,8 +202,25 @@ const toProgress = (a: { id: string; answers: { messageId: string; choice: 'phis
   answers: a.answers.map(({ messageId, choice }) => ({ messageId, choice })),
 });
 
+const PLAYER_NOT_FOUND = 'Player not found. You may have been removed, or the class was closed.';
+
+/**
+ * Checks the player exists in an active class before the per-player limit counts the request.
+ * Unknown ids only go through unknownPlayerLimit, so they can't use up anyone's budget.
+ */
+async function loadPlayer(req: Request, res: Response, next: NextFunction) {
+  const playerId = parse(z.uuid(), req.params.playerId);
+  const found = await db().player.findFirst({
+    where: { id: playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
+    select: { id: true },
+  });
+  if (!found) return unknownPlayerLimit(req, res, () => next(new HttpError(404, PLAYER_NOT_FOUND)));
+  res.locals.playerId = found.id;
+  next();
+}
+
 /** A player's own progress. Knowing the (random) player id is what scopes it. */
-classesRouter.get('/players/:playerId', playerLimit, async (req, res) => {
+classesRouter.get('/players/:playerId', loadPlayer, playerLimit, async (req, res) => {
   const playerId = parse(z.uuid(), req.params.playerId);
   const player = await db().player.findFirst({
     where: { id: playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
@@ -204,7 +229,7 @@ classesRouter.get('/players/:playerId', playerLimit, async (req, res) => {
       attempts: { orderBy: { startedAt: 'desc' }, include: { answers: attemptAnswers } },
     },
   });
-  if (!player) throw new HttpError(404, 'Player not found. You may have been removed, or the class was closed.');
+  if (!player) throw new HttpError(404, PLAYER_NOT_FOUND);
   const current = player.attempts.find((a) => !a.finishedAt);
   res.set('Cache-Control', 'no-store').json({
     playerId: player.id,
@@ -216,7 +241,7 @@ classesRouter.get('/players/:playerId', playerLimit, async (req, res) => {
 });
 
 /** Resumes the player's unfinished attempt, or starts a new one. */
-classesRouter.post('/players/:playerId/attempts', playerLimit, async (req, res) => {
+classesRouter.post('/players/:playerId/attempts', loadPlayer, playerLimit, async (req, res) => {
   const playerId = parse(z.uuid(), req.params.playerId);
   parse(emptyBody, req.body ?? {});
   const attempt = await db().$transaction(async (tx) => {
@@ -233,7 +258,7 @@ classesRouter.post('/players/:playerId/attempts', playerLimit, async (req, res) 
     });
     return open ?? tx.attempt.create({ data: { playerId }, include: { answers: attemptAnswers } });
   });
-  if (!attempt) throw new HttpError(404, 'Player not found. You may have been removed, or the class was closed.');
+  if (!attempt) throw new HttpError(404, PLAYER_NOT_FOUND);
   res.json(toProgress(attempt) satisfies AttemptProgress);
 });
 
