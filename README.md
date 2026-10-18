@@ -4,7 +4,8 @@
 
 - Live: https://hooked-production-f0a4.up.railway.app
 - Quick round (5 messages): https://hooked-production-f0a4.up.railway.app/?quick=1
-- Demo video: https://youtu.be/-Gbr4SXZgoM
+- Custom Domain: https://www.dontgethooked.study
+- Demo video: https://youtu.be/CLO7XndXVRM
 
 ![The reveal after answering, at desktop width: a fake "package on hold" text with three numbered highlights (a $1.99 fee, a 24-hour deadline, and a lookalike link), the "Correct! Nice catch." verdict, and a Red flags list explaining each numbered highlight.](docs/reveal-1280.png)
 
