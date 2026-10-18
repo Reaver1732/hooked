@@ -319,7 +319,7 @@ export const messages: Message[] = [
     context: "You play Glimmerforge on your laptop at home.",
     from: {
       name: "Glimmerforge Security",
-      address: "security@glimmerforge-support.net",
+      address: "security@glimmerforge-support.gg",
     },
     subject: "New sign-in to your account",
     body:
@@ -331,15 +331,15 @@ export const messages: Message[] = [
     links: [
       {
         text: "Secure my account",
-        realUrl: "https://glimmerforge-support.net/verify",
+        realUrl: "https://glimmerforge-support.gg/verify",
       },
     ],
     isPhish: true,
     highlights: [
       {
-        match: "security@glimmerforge-support.net",
+        match: "security@glimmerforge-support.gg",
         type: "lookalike-sender",
-        note: 'Glimmerforge\'s real emails come from @glimmerforge.com. Adding "-support" makes it a completely different website.',
+        note: 'Glimmerforge\'s real emails come from @glimmerforge.gg. Adding "-support" makes it a completely different website.',
       },
       {
         match: "Hello Player",
@@ -358,7 +358,7 @@ export const messages: Message[] = [
     kind: "email",
     context:
       "You just logged in to Glimmerforge on a friend's computer to show them your base.",
-    from: { name: "Glimmerforge", address: "no-reply@glimmerforge.com" },
+    from: { name: "Glimmerforge", address: "no-reply@glimmerforge.gg" },
     subject: "New sign-in to your account",
     body:
       "Hi skybolt_77,\n\n" +
@@ -372,8 +372,8 @@ export const messages: Message[] = [
     isPhish: false,
     highlights: [
       {
-        match: "no-reply@glimmerforge.com",
-        note: "Glimmerforge's real address: just the name, then .com. Nothing added.",
+        match: "no-reply@glimmerforge.gg",
+        note: "Glimmerforge's real address: just the name, then .gg. Nothing added.",
       },
       { match: "Hi skybolt_77", note: "It uses your actual username." },
       {
@@ -395,8 +395,8 @@ export const messages: Message[] = [
     body: "yo is this u in this video?? everyone is sharing it {{0}}",
     links: [
       {
-        text: "clipz.watch/v/8Hq2",
-        realUrl: "https://clipz-watch.login-verify.co/v/8Hq2",
+        text: "clipz.video/v/8Hq2",
+        realUrl: "https://clipz-video.login-verify.co/v/8Hq2",
       },
     ],
     isPhish: true,
@@ -407,7 +407,7 @@ export const messages: Message[] = [
         note: "Panic gets you to click before you think. If it doesn't sound like your friend, ask them another way, like in person or by text.",
       },
       {
-        match: "clipz.watch/v/8Hq2",
+        match: "clipz.video/v/8Hq2",
         type: "mismatched-link",
         note: "It looks like a video link, but it goes to login-verify.co. A video site that makes you log in first is a trap.",
       },
