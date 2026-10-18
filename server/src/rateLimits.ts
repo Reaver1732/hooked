@@ -18,10 +18,12 @@ type LimiterOptions = {
   failuresOnly?: boolean;
   /** With failuresOnly: count only these statuses (e.g. wrong guesses, not malformed input). */
   countOnly?: number[];
+  /** Count only requests that succeed, e.g. classes actually created. */
+  successesOnly?: boolean;
 };
 
 /** In-memory limiter, so counts are per server instance. */
-function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = false, countOnly }: LimiterOptions) {
+function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = false, countOnly, successesOnly = false }: LimiterOptions) {
   return rateLimit({
     windowMs,
     limit,
@@ -29,6 +31,7 @@ function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = 
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     skipSuccessfulRequests: failuresOnly,
+    skipFailedRequests: successesOnly,
     ...(failuresOnly && {
       requestWasSuccessful: (_req, res) =>
         countOnly ? !countOnly.includes(res.statusCode) : res.statusCode < 400 || res.statusCode >= 500,
@@ -51,6 +54,9 @@ export const createClassLimit = limiter({
   windowMs: 60 * MINUTE,
   limit: 10,
   tooMany: 'Too many classes created from your network.',
+  // Only classes actually created count: junk requests, errors during an outage, and the
+  // 429s themselves can't block a school's teachers for an hour.
+  successesOnly: true,
 });
 export const joinClassLimit = limiter({
   name: 'join-class',
