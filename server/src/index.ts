@@ -52,6 +52,30 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// Changes through the API must come from this site's own pages. Otherwise any website could
+// make its visitors' browsers create classes (a body-less POST needs no CORS preflight) and
+// use up a school network's class budget. Browsers label requests with Sec-Fetch-Site; older
+// Safari sends only Origin, which is compared with the host instead. A request with neither
+// isn't from a web page (curl, scripts, the smoke test) and passes.
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const hostOf = (origin: string) => {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return null;
+  }
+};
+app.use('/api', (req, res, next) => {
+  if (READ_METHODS.has(req.method)) return next();
+  const site = req.get('sec-fetch-site');
+  const origin = req.get('origin');
+  const allowed = site
+    ? site === 'same-origin' || site === 'none'
+    : !origin || [req.get('host'), req.get('x-forwarded-host')].includes(hostOf(origin) ?? '');
+  if (allowed) return next();
+  res.status(403).json({ error: 'Requests from other websites aren’t allowed.' });
+});
+
 app.use('/api', express.json({ limit: '2kb' }), classesRouter);
 
 app.use('/api', (_req, res) => {
