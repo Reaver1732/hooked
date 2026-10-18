@@ -68,6 +68,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkShown, setLinkShown] = useState(false);
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
   const [newCode, setNewCode] = useState<{ playerId: string; nickname: string; code: string } | null>(null);
   const [gone, setGone] = useState<string | null>(null); // why the class is no longer available
@@ -123,7 +124,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
     };
   }, [refresh, stopped, code, teacherKey, handleError]);
 
-  // Once the class is gone the key in the address bar is useless; drop it, and forget it here.
+  // Once the class is gone its dashboard address is useless; drop it, and forget the key here.
   useEffect(() => {
     if (!gone) return;
     onGoneRef.current();
@@ -150,8 +151,10 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       await navigator.clipboard.writeText(dashboardUrl(credentials));
       setCopied(true);
     } catch {
+      // The address bar no longer holds the key, so show the link to copy by hand.
       setCopied(false);
-      setNotice('Couldn’t copy automatically. Copy the address from your browser’s address bar instead.');
+      setLinkShown(true);
+      setNotice('Couldn’t copy automatically, so the link is shown below. Select it and copy it somewhere safe.');
     }
   }
 
@@ -363,6 +366,11 @@ export function DashboardScreen({ credentials, onGone }: Props) {
               <p aria-live="polite" className="sr-only">
                 {copied ? 'Dashboard link copied' : ''}
               </p>
+              {linkShown && (
+                <p className="w-full rounded-chip bg-surface-muted px-3 py-2 font-code text-micro break-all select-all">
+                  {dashboardUrl(credentials)}
+                </p>
+              )}
             </div>
           </div>
 

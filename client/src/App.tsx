@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messages, quickRoundMessages, type Message } from '../../shared/messages.ts';
 import { api, ApiRequestError } from './class/api.ts';
-import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
+import {
+  dashboardHash,
+  forgetDashboardKey,
+  rememberDashboardKey,
+  takeDashboardHash,
+  type TeacherCredentials,
+} from './class/dashboardLink.ts';
 import { takeJoinParam } from './class/joinLink.ts';
 import {
   activeSession,
@@ -37,7 +43,7 @@ type Screen =
   | { name: 'guide'; back: Screen };
 
 function initialScreen(): Screen {
-  const credentials = readDashboardHash();
+  const credentials = takeDashboardHash();
   if (credentials) return { name: 'dashboard', credentials };
   if (window.location.hash === TEACHER_GUIDE_HASH) return { name: 'guide', back: { name: 'start' } };
 
@@ -167,7 +173,7 @@ export default function App() {
   // already-open tab also arrives here.
   useEffect(() => {
     const onHashChange = () => {
-      const credentials = readDashboardHash();
+      const credentials = takeDashboardHash();
       if (credentials) setScreen({ name: 'dashboard', credentials });
       else if (window.location.hash === TEACHER_GUIDE_HASH) setScreen((s) => (s.name === 'guide' ? s : { name: 'guide', back: s }));
       // The hash went away (browser Back): leave the dashboard or the guide.
@@ -309,6 +315,11 @@ export default function App() {
     guidePushedRef.current = true;
     window.location.hash = TEACHER_GUIDE_HASH;
   };
+  // Opening a dashboard adds #dashboard/CODE to history; the key stays in this tab's memory.
+  const openDashboard = (credentials: TeacherCredentials) => {
+    rememberDashboardKey(credentials);
+    window.location.hash = dashboardHash(credentials);
+  };
 
   // The header wordmark goes back to the start screen. Mid-round, check first.
   const goToStart = () => {
@@ -389,9 +400,7 @@ export default function App() {
     },
     rejoinCode,
     onDismissRejoinCode: () => setRejoinCode(null),
-    onOpenDashboard: (credentials) => {
-      window.location.hash = dashboardHash(credentials);
-    },
+    onOpenDashboard: openDashboard,
     onTeacher: () => setScreen({ name: 'teacher' }),
     // Only used while the start screen is showing, so "back" is the start screen.
     onTeacherGuide: openGuide,
@@ -467,9 +476,7 @@ export default function App() {
             onBack={() => setScreen({ name: 'start' })}
             onTeacherGuide={openGuide}
             onCreated={(credentials) => rememberClass({ ...credentials, createdAt: new Date().toISOString() })}
-            onOpenDashboard={(credentials) => {
-              window.location.hash = dashboardHash(credentials);
-            }}
+            onOpenDashboard={openDashboard}
           />
         )}
         {screen.name === 'guide' && (
@@ -491,7 +498,10 @@ export default function App() {
           <DashboardScreen
             key={screen.credentials.code}
             credentials={screen.credentials}
-            onGone={() => forgetClass(screen.credentials.code)}
+            onGone={() => {
+              forgetClass(screen.credentials.code);
+              forgetDashboardKey(screen.credentials.code);
+            }}
           />
         )}
       </main>

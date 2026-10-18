@@ -50,9 +50,9 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
         Use <strong>Show QR code</strong> for latecomers. Then project the <strong>Most-missed red flags</strong> and{' '}
         <strong>Per message</strong> sections and talk through the messages your class found hardest. Both use each
         student’s first run, so replays don’t hide what fooled people. Set a passing score if you like (80% by default,
-        checked against each student’s best run) and use <strong>Export CSV</strong> to keep a record. Before projecting, switch to full screen (F11, or the full-screen key on
-        a Chromebook) so the private dashboard link in the address bar isn’t shown, and scroll past the player list if
-        you’d rather not show individual scores.
+        checked against each student’s best run) and use <strong>Export CSV</strong> to keep a record. Once the dashboard is open, the address bar shows only the class code, not your
+        private key, so it’s fine on a projector. Scroll past the player list if you’d rather not show individual
+        scores.
       </>
     ),
   },

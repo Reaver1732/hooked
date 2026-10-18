@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '../class/api.ts';
-import { dashboardHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
+import { dashboardLinkHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
 import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { CLASS_IDLE_DAYS } from '../../../shared/api.ts';
 import { ChalkboardIcon, LockIcon } from '../components/icons.tsx';
@@ -139,7 +139,7 @@ export function TeacherScreen({ onBack, onOpenDashboard, onTeacherGuide, onCreat
           )}
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-4">
-          <a href={dashboardHash(created)} target="_blank" rel="noopener noreferrer" className={button('primary')}>
+          <a href={dashboardLinkHash(created)} target="_blank" rel="noopener noreferrer" className={button('primary')}>
             Open dashboard in a new tab
           </a>
           <button type="button" onClick={() => copyLink(created)} className={button('secondary')}>
