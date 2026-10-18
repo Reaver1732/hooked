@@ -61,9 +61,23 @@ const nicknameSchema = z
   .refine((s) => [...s].length <= NICKNAME_MAX, `Nickname must be ${NICKNAME_MAX} characters or fewer`)
   .refine((s) => !HIDDEN_CHARS.test(s), 'Nickname contains characters that aren’t allowed');
 
+// New names are held to a stricter rule than rejoins, so a student who joined under the old
+// rule can still get back in. No invisible characters at all (format, private-use and
+// default-ignorable code points such as U+2060, soft hyphen and Hangul fillers), except the
+// joiners and variation selectors inside emoji like 👩‍💻 and ❤️. And at least one visible
+// character: the braille blank U+2800 is a "symbol" that draws nothing.
+const EMOJI_SEQUENCE =
+  /[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*/gu;
+const INVISIBLE = /[\p{Cf}\p{Co}\p{Default_Ignorable_Code_Point}]/u;
+const VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
+
+const newNicknameSchema = nicknameSchema
+  .refine((s) => !INVISIBLE.test(s.replace(EMOJI_SEQUENCE, 'x')), 'Nickname contains characters that aren’t allowed')
+  .refine((s) => VISIBLE.test(s.replaceAll('\u2800', '')), 'Nickname needs at least one letter or number');
+
 // Strict objects reject unknown keys: students only ever send a nickname, a rejoin code,
 // or an answer; teachers only a target score.
-const joinBody = z.strictObject({ nickname: nicknameSchema });
+const joinBody = z.strictObject({ nickname: newNicknameSchema });
 const rejoinBody = z.strictObject({ nickname: nicknameSchema, rejoinCode: rejoinCodeSchema });
 const answerBody = z.strictObject({
   playerId: z.uuid(),
