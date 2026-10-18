@@ -80,12 +80,19 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
   // `fatal` stops polling (bad key, class gone); otherwise the last good data stays up.
   const [error, setError] = useState<{ message: string; fatal: boolean } | null>(null);
 
-  const handleError = useCallback((err: unknown, fallback: string) => {
-    const status = err instanceof ApiRequestError ? err.status : null;
-    const message = err instanceof ApiRequestError ? err.message : fallback;
-    if (status === 404) setGone(message);
-    else setError({ message, fatal: status === 401 });
-  }, []);
+  const handleError = useCallback(
+    (err: unknown, fallback: string) => {
+      const status = err instanceof ApiRequestError ? err.status : null;
+      if (status === 404) setGone(err instanceof ApiRequestError ? err.message : fallback);
+      else if (status === 401) {
+        setError({
+          message: `This dashboard link doesn’t work for class ${code}. It may be mistyped, or a newer link replaced it. Open the newest link you saved.`,
+          fatal: true,
+        });
+      } else setError({ message: err instanceof ApiRequestError ? err.message : fallback, fatal: false });
+    },
+    [code],
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -295,7 +302,11 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
           </button>
         </div>
         <p className="mt-3 text-micro text-ink-muted" aria-live="off">
-          {updatedAt ? `Updated ${updatedAt.toLocaleTimeString()} · refreshes every 5 s` : 'Loading…'}
+          {updatedAt
+            ? `Updated ${updatedAt.toLocaleTimeString()} · refreshes every 5 s`
+            : error?.fatal
+              ? 'Couldn’t open this dashboard.'
+              : 'Loading…'}
         </p>
       </div>
 

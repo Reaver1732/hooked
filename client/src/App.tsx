@@ -45,8 +45,17 @@ type Screen =
   | { name: 'dashboard'; credentials: TeacherCredentials; openedWith: string }
   | { name: 'guide'; back: Screen };
 
+const INCOMPLETE_LINK =
+  'That dashboard link isn’t complete. Open the whole link you saved: it ends with a long private key.';
+// Set when the page opened on an unusable dashboard link, so the start screen can say why.
+let openedOnIncompleteLink = false;
+
 function initialScreen(): Screen {
   const credentials = takeDashboardHash();
+  if (credentials === 'incomplete') {
+    openedOnIncompleteLink = true;
+    return { name: 'start' };
+  }
   if (credentials) return { name: 'dashboard', credentials, openedWith: credentials.teacherKey };
   if (window.location.hash === TEACHER_GUIDE_HASH) return { name: 'guide', back: { name: 'start' } };
 
@@ -132,7 +141,7 @@ export default function App() {
   // Restored from this tab's sessionStorage, so a refresh stays in the class.
   const [session, setSession] = useState<ClassSession | null>(activeSession);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(() => (openedOnIncompleteLink ? INCOMPLETE_LINK : null));
   /** A new player's rejoin code, shown once on the start screen. */
   const [rejoinCode, setRejoinCode] = useState<string | null>(null);
   /**
@@ -177,7 +186,10 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => {
       const credentials = takeDashboardHash();
-      if (credentials) setScreen({ name: 'dashboard', credentials, openedWith: credentials.teacherKey });
+      if (credentials === 'incomplete') {
+        setScreen({ name: 'start' });
+        setNotice(INCOMPLETE_LINK);
+      } else if (credentials) setScreen({ name: 'dashboard', credentials, openedWith: credentials.teacherKey });
       else if (window.location.hash === TEACHER_GUIDE_HASH) setScreen((s) => (s.name === 'guide' ? s : { name: 'guide', back: s }));
       // The hash went away (browser Back): leave the dashboard or the guide.
       else setScreen((s) => (s.name === 'dashboard' ? { name: 'start' } : s.name === 'guide' ? s.back : s));
