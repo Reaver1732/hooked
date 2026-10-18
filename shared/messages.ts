@@ -404,7 +404,7 @@ export const messages: Message[] = [
       {
         match: "is this u in this video??",
         type: "urgency",
-        note: "Panic gets you to click before you think. If it doesn't sound like your friend, ask them another way, like in person or by text.",
+        note: "Jayden's account was probably hacked. Scammers use a friend's account because you trust it. If it doesn't sound like Jayden, ask them another way, like in person or by text.",
       },
       {
         match: "clipz.video/v/8Hq2",

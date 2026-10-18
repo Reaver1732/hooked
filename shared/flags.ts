@@ -1,11 +1,11 @@
 import type { FlagType, Message } from './messages.ts';
 
 export const FLAG_LABELS: Record<FlagType, string> = {
-  'lookalike-sender': 'Lookalike address',
-  urgency: 'Pressure and urgency',
+  'lookalike-sender': 'Copycat sender or website',
+  urgency: 'Rushes or scares you',
   'mismatched-link': 'Link goes somewhere else',
-  'asks-for-credentials': 'Asks for login, codes, or payment info',
-  'generic-greeting': 'Generic greeting',
+  'asks-for-credentials': 'Asks for passwords, codes, money, or private info',
+  'generic-greeting': 'Doesn’t use your name',
   'too-good-to-be-true': 'Too good to be true',
   'unexpected-attachment': 'Unexpected attachment',
 };
