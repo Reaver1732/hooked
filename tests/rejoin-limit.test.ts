@@ -1,4 +1,4 @@
-// Audit F7: padding the class code with whitespace doesn't get a fresh per-class rejoin budget.
+// Audit F7: padding the class code with whitespace doesn't get a fresh rejoin budget.
 // The server trusts two proxy hops here (like production), so each request can come from its
 // own client IP and only the per-class limit applies.
 import assert from 'node:assert/strict';
@@ -13,12 +13,12 @@ after(() => server.stop());
 
 const from = (n: number) => ({ 'X-Forwarded-For': `10.1.${Math.floor(n / 250)}.${n % 250}, 192.0.2.1` });
 
-test('padded class codes share the per-class rejoin limit', { skip: !hasDatabase && 'needs DATABASE_URL' }, async () => {
+test('padded class codes share the rejoin limit', { skip: !hasDatabase && 'needs DATABASE_URL' }, async () => {
   const api = client(server.base);
   const cls = await makeClass(api);
   try {
     await cls.join('Target');
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 10; i++) {
       const res = await api.post(`/classes/${cls.code}/rejoin`, { nickname: 'Target', rejoinCode: 'AAAAAA' }, from(i));
       assert.equal(res.status, 401);
     }

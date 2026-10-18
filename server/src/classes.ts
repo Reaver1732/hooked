@@ -29,6 +29,7 @@ import {
   playerLimit,
   rejoinClassLimit,
   rejoinIpLimit,
+  rejoinKey,
   summaryLimit,
   unknownPlayerLimit,
 } from './rateLimits.ts';
@@ -458,6 +459,9 @@ classesRouter.post('/classes/:code/players/:playerId/rejoin-code', async (req, r
     data: { rejoinCodeHash: hashRejoinCode(playerId, rejoinCode) },
   });
   if (count === 0) throw new HttpError(404, 'Player not found in this class');
+  // A fresh code should work at once, even if someone used up this student's wrong guesses.
+  const player = await db().player.findUnique({ where: { id: playerId }, select: { nickname: true } });
+  if (player) await rejoinClassLimit.resetKey(rejoinKey(cls.code, player.nickname));
   res.json({ rejoinCode } satisfies ResetRejoinCodeResponse);
 });
 

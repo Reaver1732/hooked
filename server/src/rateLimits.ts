@@ -16,10 +16,12 @@ type LimiterOptions = {
    * (5xx, like a database outage) don't count, so an outage can't lock anyone out afterwards.
    */
   failuresOnly?: boolean;
+  /** With failuresOnly: count only these statuses (e.g. wrong guesses, not malformed input). */
+  countOnly?: number[];
 };
 
 /** In-memory limiter, so counts are per server instance. */
-function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = false }: LimiterOptions) {
+function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = false, countOnly }: LimiterOptions) {
   return rateLimit({
     windowMs,
     limit,
@@ -27,7 +29,10 @@ function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = 
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     skipSuccessfulRequests: failuresOnly,
-    ...(failuresOnly && { requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode >= 500 }),
+    ...(failuresOnly && {
+      requestWasSuccessful: (_req, res) =>
+        countOnly ? !countOnly.includes(res.statusCode) : res.statusCode < 400 || res.statusCode >= 500,
+    }),
     ...(keyGenerator && { keyGenerator }),
     handler: (req, res, _next, options) => {
       const resetTime = (req as AugmentedRequest).rateLimit?.resetTime;
@@ -66,24 +71,37 @@ export const answerLimit = limiter({
   keyGenerator: (_req, res) => (res as Response).locals.playerId as string,
 });
 
-// Rejoin codes are 6 characters, so guessing is limited twice: per class (from any
-// number of IPs) and per IP (across classes). Only wrong guesses count, so a class
-// rejoining together from one school network never hits either limit.
+/**
+ * The rejoin limiter's key for one student: the class code (trimmed and uppercased like the
+ * route's codeSchema) and the nickname (normalized like nicknameSchema, then lowercased the way
+ * nickname lookups compare). Used by the limiter and by the teacher's "Reset code".
+ */
+export const rejoinKey = (code: string, nickname: string) =>
+  `${code.trim().toUpperCase()}:${nickname.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase()}`;
+
+// Rejoin codes are 6 characters, so guessing is limited twice: per student (class code and
+// nickname, from any number of IPs) and per IP (across classes). Only wrong guesses (401) and
+// unknown classes (404) count: not correct rejoins, malformed requests, or the 429s themselves.
+// So someone who can see the class code can't lock the whole class out, and a school network
+// full of students with typos doesn't hit the per-IP limit. A ~887-million code space with 10
+// guesses per student per 10 minutes keeps guessing hopeless.
 export const rejoinClassLimit = limiter({
-  name: 'rejoin-class',
+  name: 'rejoin-student',
   windowMs: 10 * MINUTE,
-  limit: 30,
-  tooMany: 'Too many wrong rejoin codes for this class.',
-  // Same trim + uppercase as the route's codeSchema, so padded variants of a code share a bucket.
-  keyGenerator: (req) => String(req.params.code ?? '').trim().toUpperCase(),
+  limit: 10,
+  tooMany: 'Too many wrong codes for this nickname. Ask your teacher for a new code, or try again later.',
+  keyGenerator: (req) =>
+    rejoinKey(String(req.params.code ?? ''), typeof req.body?.nickname === 'string' ? req.body.nickname : ''),
   failuresOnly: true,
+  countOnly: [401, 404],
 });
 export const rejoinIpLimit = limiter({
   name: 'rejoin-ip',
   windowMs: 10 * MINUTE,
-  limit: 30,
+  limit: 120,
   tooMany: 'Too many wrong rejoin codes from your network.',
   failuresOnly: true,
+  countOnly: [401, 404],
 });
 
 /**
