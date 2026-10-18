@@ -59,6 +59,8 @@ export type ClassSummary = {
     attempts: number;
     /** Messages answered in the current unfinished attempt, if there is one. */
     inProgress: number | null;
+    /** That attempt started or got an answer in the last few minutes ("playing now", not left behind). */
+    inProgressActive: boolean;
     /** The first finished attempt, played before seeing any answers. */
     first: Score | null;
     /** The best finished attempt; decides `passed`. */

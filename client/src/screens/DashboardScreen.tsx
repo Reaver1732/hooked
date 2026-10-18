@@ -503,7 +503,8 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
                         )}
                         {' · '}
                         {p.attempts} {p.attempts === 1 ? 'attempt' : 'attempts'}
-                        {p.inProgress !== null && ` · playing now (${p.inProgress}/${summary.totalMessages})`}
+                        {p.inProgress !== null &&
+                          ` · ${p.inProgressActive ? 'playing now' : 'unfinished run'} (${p.inProgress}/${summary.totalMessages})`}
                       </p>
                       {newCode?.playerId === p.id && (
                         <p className="rounded-control border-2 border-primary bg-surface-muted px-4 py-3 text-small">

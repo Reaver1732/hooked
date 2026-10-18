@@ -438,6 +438,12 @@ classesRouter.get('/classes/:code/summary', teacherAuth, summaryLimit, async (_r
   res.set('Cache-Control', 'no-store').json(await pending);
 });
 
+// An unfinished attempt counts as "playing now" for this long after its last answer (or its
+// start); after that the dashboard calls it an unfinished run, since the student likely left.
+const PLAYING_NOW_MS = 5 * 60 * 1000;
+const lastActivity = (attempt: { startedAt: Date; answers: { createdAt: Date }[] }) =>
+  Math.max(attempt.startedAt.getTime(), ...attempt.answers.map((a) => a.createdAt.getTime()));
+
 async function buildSummary(cls: TeacherClass): Promise<ClassSummary> {
   const players = await db().player.findMany({
     where: { classId: cls.id },
@@ -445,12 +451,13 @@ async function buildSummary(cls: TeacherClass): Promise<ClassSummary> {
     include: {
       attempts: {
         orderBy: { startedAt: 'asc' },
-        include: { answers: { select: { messageId: true, choice: true, correct: true } } },
+        include: { answers: { select: { messageId: true, choice: true, correct: true, createdAt: true } } },
       },
     },
   });
 
   const target = cls.targetPercent;
+  const activeSince = Date.now() - PLAYING_NOW_MS;
   const rows = players.map((p) => {
     const best = bestAttempt(p.attempts);
     // Attempts are ordered by start, so this is the first run the student finished,
@@ -465,6 +472,7 @@ async function buildSummary(cls: TeacherClass): Promise<ClassSummary> {
         nickname: p.nickname,
         attempts: p.attempts.filter((a) => a.finishedAt).length,
         inProgress: current ? current.answers.length : null,
+        inProgressActive: current ? lastActivity(current) >= activeSince : false,
         first: first ? scoreOf(first.answers) : null,
         best: best?.score ?? null,
         // Exact comparison (12/15 = 80% passes an 80% target), not the rounded percent.
