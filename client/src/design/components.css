@@ -238,6 +238,30 @@
     line-height: 1.6;
   }
 
+  /* Windows high contrast (forced colors) drops backgrounds and shadows, which is all that
+     outlines buttons, cards and key caps here: give them real borders in system colors. The
+     progress bar and answered pills keep their own colors so progress doesn't vanish. */
+  @media (forced-colors: active) {
+    .hk-btn,
+    .hk-answer {
+      border: 2px solid ButtonText;
+    }
+    .hk-card,
+    .hk-key {
+      border: 1px solid CanvasText;
+    }
+    .hk-track {
+      border: 1px solid CanvasText;
+    }
+    .hk-fill,
+    .hk-track[data-done] {
+      forced-color-adjust: none;
+    }
+    .hk-track[data-current] {
+      border-width: 3px;
+    }
+  }
+
   /* Motion: only when the reader hasn't asked for less. */
   @media (prefers-reduced-motion: no-preference) {
     .hk-btn,

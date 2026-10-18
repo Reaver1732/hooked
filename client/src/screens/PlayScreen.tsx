@@ -24,14 +24,21 @@ export function PlayScreen(props: PlayStateOptions) {
             <p className="rounded-full bg-canvas px-3 py-1 text-small font-bold text-accent">{correctSoFar} correct</p>
           </div>
           {/* Phones: one chunky bar. Wider: a pill per message, colored once answered. */}
-          <div aria-hidden className="mt-3 h-3 overflow-hidden rounded-full bg-track sm:hidden">
+          <div aria-hidden className="hk-track mt-3 h-3 overflow-hidden rounded-full bg-track sm:hidden">
             <div className="hk-fill h-full rounded-full bg-fill" style={{ width: `${(answers.length / deck.length) * 100}%` }} />
           </div>
           <ol aria-hidden className="mt-3 hidden gap-2 sm:flex">
             {deck.map((m, i) => {
               const a = answers[i];
               const color = a ? (isCorrect(a) ? 'bg-good' : 'bg-bad') : i === index ? 'bg-primary' : 'bg-track';
-              return <li key={m.id} className={`h-3 flex-1 rounded-full ${color}`} />;
+              return (
+                <li
+                  key={m.id}
+                  data-done={a ? '' : undefined}
+                  data-current={!a && i === index ? '' : undefined}
+                  className={`hk-track h-3 flex-1 rounded-full ${color}`}
+                />
+              );
             })}
           </ol>
         </div>
