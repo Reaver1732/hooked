@@ -21,7 +21,7 @@ import {
 } from '../../shared/api.ts';
 import { mostMissedFlags } from '../../shared/flags.ts';
 import { messages, type Message } from '../../shared/messages.ts';
-import { getPrisma } from './db.ts';
+import { databaseDownReason, getPrisma } from './db.ts';
 import {
   answerLimit,
   classStatusLimit,
@@ -569,7 +569,7 @@ function messageLabel(m: Message): string {
 // ---- Errors -----------------------------------------------------------------------
 
 /** JSON errors for /api. Client errors keep their message; anything else is a generic 500. */
-export function apiErrorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function apiErrorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
     return;
@@ -578,6 +578,16 @@ export function apiErrorHandler(err: unknown, _req: Request, res: Response, _nex
   const status = (err as { status?: unknown }).status;
   if (typeof status === 'number' && status >= 400 && status < 500) {
     res.status(status).json({ error: status === 413 ? 'Request body too large' : 'Malformed request body' });
+    return;
+  }
+  // Database unreachable: say so (solo play still works) and log one line, not a stack per request.
+  const down = databaseDownReason(err);
+  if (down) {
+    console.error(`database unavailable (${down}) on ${req.method} ${req.baseUrl}${req.route?.path ?? ''}`);
+    res
+      .status(503)
+      .set('Retry-After', '30')
+      .json({ error: 'Class mode is temporarily unavailable. Solo play still works; try again in a minute.' });
     return;
   }
   console.error(err);

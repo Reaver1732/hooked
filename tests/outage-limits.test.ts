@@ -30,3 +30,15 @@ test('failed and rejected class creations do not use up the creation limit', asy
   for (let i = 0; i < 12; i++) statuses.push((await api.post('/classes')).status);
   assert.ok(statuses.every((s) => s >= 500), `outage errors, no 429: ${[...new Set(statuses)].join(',')}`);
 });
+
+// Audit F34: an unreachable database answers 503 with a plain message, logged as one line.
+test('database outages answer 503 and log one line, not a stack', async () => {
+  const api = client(server.base);
+  const res = await api.post('/classes/ABCDEF/join', { nickname: 'Sam' });
+  assert.equal(res.status, 503);
+  assert.match(res.body.error, /temporarily unavailable/);
+  assert.equal(res.headers.get('retry-after'), '30');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.match(server.output(), /database unavailable \(P1001\) on POST \/api\/classes\/:code\/join/);
+  assert.doesNotMatch(server.output(), /handleRequestError/, 'no stack traces in the log');
+});

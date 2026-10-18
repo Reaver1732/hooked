@@ -31,3 +31,24 @@ export function getPrisma(): PrismaClient | null {
   }
   return client;
 }
+
+// Prisma codes for "can't reach the database" (P1001 unreachable, P1002 timed out, P1008
+// operation timed out, P1017 server closed the connection, P2037 too many connections).
+const DATABASE_DOWN_CODES = new Set(['P1001', 'P1002', 'P1008', 'P1017', 'P2037']);
+// The pg driver's own timeouts and socket errors, which reach us without a Prisma wrapper.
+const DATABASE_DOWN_MESSAGE = /connection timeout|Connection terminated|Query read timeout|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EHOSTUNREACH/i;
+
+/**
+ * A short description if this error means the database is unreachable (rather than a bug),
+ * or null. Used to answer 503 instead of 500 and to log one line instead of a stack.
+ */
+export function databaseDownReason(err: unknown): string | null {
+  if (!(err instanceof Error)) return null;
+  const code = (err as { code?: unknown }).code;
+  if (typeof code === 'string' && DATABASE_DOWN_CODES.has(code)) return code;
+  if (err.name === 'PrismaClientInitializationError') return 'init';
+  for (let e: unknown = err; e instanceof Error; e = e.cause) {
+    if (DATABASE_DOWN_MESSAGE.test(e.message)) return e.message.slice(0, 80);
+  }
+  return null;
+}
