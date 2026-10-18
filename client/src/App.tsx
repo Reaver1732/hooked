@@ -38,7 +38,7 @@ type GameScreen =
 type Screen =
   | GameScreen
   | { name: 'password'; back: GameScreen }
-  | { name: 'join'; initialCode?: string }
+  | { name: 'join'; initialCode?: string; badLink?: boolean }
   | { name: 'teacher' }
   // openedWith: the key the dashboard was opened with. Opening another link (say, a corrected
   // one after a wrong key) starts the dashboard afresh; "Get a new link" doesn't.
@@ -61,7 +61,8 @@ function initialScreen(): Screen {
 
   // A join link or QR code: <site>/?join=CODE
   const joinCode = takeJoinParam();
-  if (joinCode) return { name: 'join', initialCode: joinCode };
+  if (typeof joinCode === 'string') return { name: 'join', initialCode: joinCode };
+  if (joinCode) return { name: 'join', initialCode: joinCode.unusable, badLink: true };
 
   // <site>/?quick=1 starts the 5-message quick round (solo only, so not when this tab is in a class).
   if (new URLSearchParams(window.location.search).get('quick') === '1' && !activeSession()) {
@@ -499,6 +500,7 @@ export default function App() {
         {screen.name === 'join' && (
           <JoinScreen
             initialCode={screen.initialCode}
+            badLink={screen.badLink}
             onBack={() => setScreen({ name: 'start' })}
             onJoined={(joined, newRejoinCode) => {
               rememberPlayer(joined);
