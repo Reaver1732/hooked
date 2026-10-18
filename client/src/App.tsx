@@ -126,12 +126,16 @@ export default function App() {
     else forgetActiveSession();
   }, [session]);
 
-  // A dashboard link pasted into an already-open tab only changes the hash.
+  // The dashboard and the guide each have their own hash, so browser Back and Forward move
+  // between them and the screen they were opened from. A dashboard link pasted into an
+  // already-open tab also arrives here.
   useEffect(() => {
     const onHashChange = () => {
       const credentials = readDashboardHash();
       if (credentials) setScreen({ name: 'dashboard', credentials });
       else if (window.location.hash === TEACHER_GUIDE_HASH) setScreen((s) => (s.name === 'guide' ? s : { name: 'guide', back: s }));
+      // The hash went away (browser Back): leave the dashboard or the guide.
+      else setScreen((s) => (s.name === 'dashboard' ? { name: 'start' } : s.name === 'guide' ? s.back : s));
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -194,7 +198,14 @@ export default function App() {
     setScreen({ name: 'play', deck: quickRoundMessages(), quick: true });
   };
   const openPasswordCheck = (back: GameScreen) => setScreen({ name: 'password', back });
-  const openGuide = (back: Screen) => setScreen({ name: 'guide', back });
+  // True while the guide's history entry was added by the app, so its Back button can undo it.
+  const guidePushedRef = useRef(false);
+  // Opening the guide adds its hash to history; the hashchange handler shows it, with the
+  // current screen to go back to.
+  const openGuide = () => {
+    guidePushedRef.current = true;
+    window.location.hash = TEACHER_GUIDE_HASH;
+  };
 
   // The header wordmark goes back to the start screen. Mid-round, check first.
   const goToStart = () => {
@@ -270,7 +281,7 @@ export default function App() {
     },
     onTeacher: () => setScreen({ name: 'teacher' }),
     // Only used while the start screen is showing, so "back" is the start screen.
-    onTeacherGuide: () => openGuide({ name: 'start' }),
+    onTeacherGuide: openGuide,
     onPasswordCheck: () => openPasswordCheck({ name: 'start' }),
   };
   const playProps =
@@ -338,7 +349,7 @@ export default function App() {
         {screen.name === 'teacher' && (
           <TeacherScreen
             onBack={() => setScreen({ name: 'start' })}
-            onTeacherGuide={() => openGuide(screen)}
+            onTeacherGuide={openGuide}
             onCreated={(credentials) => rememberClass({ ...credentials, createdAt: new Date().toISOString() })}
             onOpenDashboard={(credentials) => {
               window.location.hash = dashboardHash(credentials);
@@ -348,6 +359,13 @@ export default function App() {
         {screen.name === 'guide' && (
           <TeacherGuideScreen
             onBack={() => {
+              // Opened in the app: step back through history, which the hashchange handler
+              // follows. Opened from a link: there's no earlier entry here, so just clear the hash.
+              if (guidePushedRef.current && window.location.hash === TEACHER_GUIDE_HASH) {
+                guidePushedRef.current = false;
+                window.history.back();
+                return;
+              }
               if (window.location.hash === TEACHER_GUIDE_HASH) window.history.replaceState(null, '', window.location.pathname);
               setScreen(screen.back);
             }}
