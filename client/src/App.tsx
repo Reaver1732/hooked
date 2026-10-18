@@ -279,12 +279,31 @@ export default function App() {
     };
   }, [flushQueued]);
 
+  // One start at a time. A double click would otherwise send two starts, and a slow reply could
+  // pull the student off a screen they've moved to since, or reset a round to message 1.
+  const startingRef = useRef(false);
+  const [starting, setStarting] = useState(false);
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
   const play = async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    try {
+      await startRound(screenRef.current);
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
+    }
+  };
+  const startRound = async (from: Screen) => {
+    const movedOn = () => screenRef.current !== from;
     let initialAnswers: Answer[] = [];
     // Let the last round's answers land first (in flight, then queued), so that round can
     // finish before the next one starts; otherwise the server would resume the old attempt.
     await Promise.allSettled([...inFlightRef.current]);
     if (queuedRef.current.size) await flushQueued();
+    if (movedOn()) return;
     attemptIdRef.current = null;
     setSyncError(null);
     setNotice(null);
@@ -292,9 +311,11 @@ export default function App() {
       try {
         // Resumes the unfinished attempt (if any) or starts a new one.
         const attempt = await startAttemptWithRetry(session.playerId);
+        if (movedOn()) return;
         attemptIdRef.current = attempt.attemptId;
         initialAnswers = resumedAnswers(attempt.answers);
       } catch (err) {
+        if (movedOn()) return;
         if (err instanceof ApiRequestError && err.status === 404) {
           await explainMissingPlayer(session.code, 'You’re no longer in this class. Join again, or keep playing on your own.');
           return;
@@ -397,6 +418,7 @@ export default function App() {
   const startProps: StartScreenProps = {
     session,
     onStart: play,
+    starting,
     onQuickStart: session ? undefined : playQuick,
     onJoinClass: () => setScreen({ name: 'join' }),
     onLeaveClass: () => {
@@ -469,6 +491,7 @@ export default function App() {
             classCode={screen.quick || syncError ? undefined : session?.code}
             classSaving={pendingSends > 0}
             onPlayAgain={play}
+            starting={starting}
             onPasswordCheck={() => openPasswordCheck(screen)}
           />
         )}
