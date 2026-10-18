@@ -22,7 +22,7 @@ app.set('trust proxy', process.env.RAILWAY_ENVIRONMENT_ID ? 2 : false);
 app.use(compression());
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, uptime: process.uptime() });
+  res.json({ ok: true });
 });
 
 app.use('/api', express.json({ limit: '2kb' }), classesRouter);
