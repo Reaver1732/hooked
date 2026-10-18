@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { FLAG_LABELS, mostMissedFlags } from '../../../shared/flags.ts';
-import { FishIcon, FlagIcon, LifebuoyIcon, ShieldCheckIcon } from '../components/icons.tsx';
-import { button, IconTile, StepNumber } from '../design/parts.tsx';
+import type { Message } from '../../../shared/messages.ts';
+import { MessageView } from '../components/MessageView.tsx';
+import { FishIcon, FlagIcon, LifebuoyIcon, ShieldCheckIcon, XCircleIcon } from '../components/icons.tsx';
+import { button, IconTile, Notes, Situation, StepNumber } from '../design/parts.tsx';
 import { isCorrect, type Answer } from '../game/types.ts';
 
 type Props = {
@@ -36,6 +38,12 @@ const HOOKED_STEPS: [string, string][] = [
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
+/** A short name for a message in a list: an email's subject, or who a text or DM is from. */
+function messageLabel(m: Message): string {
+  if (m.kind === 'email' && m.subject) return `Email: ${m.subject}`;
+  return `${m.kind === 'dm' ? 'DM' : 'Text'} from ${m.from.name}`;
+}
+
 export function ResultsScreen(props: Props) {
   const { answers, onPlayAgain, onPasswordCheck, classCode, classSaving = false, quick = false, totalMessages } = props;
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -51,6 +59,7 @@ export function ResultsScreen(props: Props) {
   const mostMissed = mostMissedFlags(answers);
   const legit = answers.filter((a) => !a.message.isPhish);
   const falseAlarms = legit.filter((a) => a.guessedPhish).length;
+  const wrong = answers.filter((a) => !isCorrect(a));
 
   return (
     <section aria-labelledby="results-heading" className="flex flex-col gap-6">
@@ -141,6 +150,48 @@ export function ResultsScreen(props: Props) {
           </p>
         </section>
       </div>
+
+      {/* Each miss reopens read-only, with its clues lit, so a student can see what they missed. */}
+      {wrong.length > 0 && (
+        <section aria-labelledby="ones-missed-heading" className="hk-card p-5 sm:p-6">
+          <h3 id="ones-missed-heading" className="hk-display flex items-center gap-3 text-heading">
+            <IconTile tone="mark">
+              <XCircleIcon className="size-6" />
+            </IconTile>
+            Ones you missed
+          </h3>
+          <p className="mt-2 text-small text-card-ink-muted">Open one to see it again with its clues lit up.</p>
+          <ul role="list" className="mt-4 flex flex-col gap-3">
+            {wrong.map(({ message: m }) => (
+              <li key={m.id}>
+                <details className="group rounded-control border-2 border-line">
+                  <summary className="hk-focus flex cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-control px-4 py-3">
+                    <span className="flex flex-col">
+                      <span className="font-bold">{messageLabel(m)}</span>
+                      <span className="text-small text-card-ink-muted">
+                        You said {m.isPhish ? 'Legit' : 'Phish'} · it was {m.isPhish ? 'a phish' : 'legit'}
+                      </span>
+                    </span>
+                    {/* A flex summary hides the browser's own triangle, so say what clicking does. */}
+                    <span className="hk-link text-small">
+                      <span className="group-open:hidden">Show it</span>
+                      <span className="hidden group-open:inline">Hide</span>
+                    </span>
+                  </summary>
+                  <div className="flex flex-col gap-4 px-4 pb-4">
+                    {m.context && <Situation text={m.context} />}
+                    {/* No reveal animations here: the message is shown again as it was, not answered. */}
+                    <div className="font-message text-card-ink">
+                      <MessageView message={{ ...m, context: undefined }} revealed />
+                    </div>
+                    <Notes message={m} headingId={`missed-notes-${m.id}`} headingLevel="h4" reveal={false} />
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="hooked-help-heading" className="rounded-card bg-raised p-5 sm:p-6">
         <h3 id="hooked-help-heading" className="hk-display flex items-center gap-3 text-heading">

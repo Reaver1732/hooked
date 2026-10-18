@@ -230,16 +230,28 @@ export function Verdict({
 }
 
 /** The numbered red flags (or signs it's safe) shown after answering. */
-export function Notes({ message }: { message: Message }) {
+export function Notes({
+  message,
+  headingId = 'notes-heading',
+  headingLevel: Heading = 'h3',
+  reveal = true,
+}: {
+  message: Message;
+  /** Unique per page: the results list shows several. */
+  headingId?: string;
+  headingLevel?: 'h3' | 'h4';
+  /** Animate in, as during play. Off when shown again later. */
+  reveal?: boolean;
+}) {
   const tone = message.isPhish ? 'flag' : 'safe';
   return (
-    <section aria-labelledby="notes-heading" className="hk-card hk-reveal-rise p-5 sm:p-6">
-      <h3 id="notes-heading" className="hk-display flex items-center gap-3 text-title">
+    <section aria-labelledby={headingId} className={`hk-card p-5 sm:p-6 ${reveal ? 'hk-reveal-rise' : ''}`}>
+      <Heading id={headingId} className="hk-display flex items-center gap-3 text-title">
         <IconTile tone={message.isPhish ? 'mark' : 'accent'}>
           {message.isPhish ? <FlagIcon className="size-6" /> : <ShieldCheckIcon className="size-6" />}
         </IconTile>
         {message.isPhish ? 'Red flags' : 'Why it’s safe'}
-      </h3>
+      </Heading>
       <ol role="list" className="mt-4 flex flex-col gap-4">
         {message.highlights.map((h, i) => (
           <li key={i} className="flex gap-3">
