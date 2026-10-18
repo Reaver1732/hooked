@@ -82,6 +82,18 @@ export const rejoinIpLimit = limiter({
 });
 
 /**
+ * Dashboard summaries, per class. Runs after the teacher key is checked (res.locals.cls), so
+ * someone without the key can't use up a teacher's budget. An open dashboard polls 12 a minute.
+ */
+export const summaryLimit = limiter({
+  name: 'summary',
+  windowMs: MINUTE,
+  limit: 60,
+  tooMany: 'The dashboard is refreshing too often.',
+  keyGenerator: (_req, res) => (res as Response).locals.cls.id as string,
+});
+
+/**
  * Player progress lookups and attempt starts, per player, so classmates on one network never
  * share a budget and one device can't use it up for everyone. Must run after loadPlayer
  * (classes.ts), which checks the player exists and sets res.locals.playerId.

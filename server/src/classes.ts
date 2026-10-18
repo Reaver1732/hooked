@@ -29,6 +29,7 @@ import {
   playerLimit,
   rejoinClassLimit,
   rejoinIpLimit,
+  summaryLimit,
   unknownPlayerLimit,
 } from './rateLimits.ts';
 import { Prisma, type PrismaClient } from './generated/prisma/client.ts';
@@ -333,8 +334,37 @@ function bestAttempt<T extends { finishedAt: Date | null; answers: GradedAnswer[
   return best;
 }
 
-classesRouter.get('/classes/:code/summary', async (req, res) => {
-  const cls = await requireTeacher(req);
+type TeacherClass = Awaited<ReturnType<typeof requireTeacher>>;
+
+/** Checks the teacher key and puts the class on res.locals, so a limiter can run after it. */
+async function teacherAuth(req: Request, res: Response, next: NextFunction) {
+  res.locals.cls = await requireTeacher(req);
+  next();
+}
+
+/**
+ * Summaries being built right now, per class id. Concurrent requests for the same class (several
+ * dashboard tabs, or a burst) share one database read instead of each loading every answer.
+ */
+const summariesInFlight = new Map<string, Promise<ClassSummary>>();
+
+/** After a change to the class, start the next summary fresh instead of joining an older one. */
+const summaryChanged = (classId: string) => summariesInFlight.delete(classId);
+
+classesRouter.get('/classes/:code/summary', teacherAuth, summaryLimit, async (_req, res) => {
+  const cls = res.locals.cls as TeacherClass;
+  let pending = summariesInFlight.get(cls.id);
+  if (!pending) {
+    const built = buildSummary(cls).finally(() => {
+      if (summariesInFlight.get(cls.id) === built) summariesInFlight.delete(cls.id);
+    });
+    summariesInFlight.set(cls.id, built);
+    pending = built;
+  }
+  res.set('Cache-Control', 'no-store').json(await pending);
+});
+
+async function buildSummary(cls: TeacherClass): Promise<ClassSummary> {
   const players = await db().player.findMany({
     where: { classId: cls.id },
     orderBy: { createdAt: 'asc' },
@@ -403,14 +433,15 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
       };
     }),
   };
-  res.set('Cache-Control', 'no-store').json(summary);
-});
+  return summary;
+}
 
 /** Teacher: change the class's target score. */
 classesRouter.patch('/classes/:code', async (req, res) => {
   const cls = await requireTeacher(req);
   const { targetPercent } = parse(updateClassBody, req.body);
   await db().class.update({ where: { id: cls.id }, data: { targetPercent } });
+  summaryChanged(cls.id);
   res.json({ targetPercent });
 });
 
@@ -439,6 +470,7 @@ classesRouter.delete('/classes/:code/players/:playerId', async (req, res) => {
     WHERE id IN (SELECT "classId" FROM gone)
     RETURNING id`;
   if (removed.length === 0) throw new HttpError(404, 'Player not found in this class');
+  summaryChanged(cls.id);
   res.status(204).end();
 });
 
@@ -460,6 +492,7 @@ classesRouter.post('/classes/:code/keep', async (req, res) => {
 classesRouter.delete('/classes/:code', async (req, res) => {
   const cls = await requireTeacher(req);
   await db().class.deleteMany({ where: { id: cls.id } });
+  summaryChanged(cls.id);
   res.status(204).end();
 });
 
