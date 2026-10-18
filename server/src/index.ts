@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { apiErrorHandler, classesRouter } from './classes.ts';
 import { startClassCleanup } from './cleanup.ts';
+import { databaseHealth } from './db.ts';
 import { loadLocalEnv } from './env.ts';
 
 loadLocalEnv();
@@ -48,8 +49,10 @@ app.use((_req, res, next) => {
 
 app.use(compression());
 
+// Always 200, so solo play and deploys never depend on the database; `db` says whether class
+// mode can reach it (ok, down, unconfigured, or checking right after start).
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, db: databaseHealth() });
 });
 
 // Changes through the API must come from this site's own pages. Otherwise any website could
@@ -123,6 +126,7 @@ const onListen = (err?: Error) => {
     return;
   }
   console.log(`Server listening on http://localhost:${PORT}`);
+  databaseHealth(); // start the first check, so health has an answer soon
   startClassCleanup();
 };
 if (HOST) app.listen(PORT, HOST, onListen);

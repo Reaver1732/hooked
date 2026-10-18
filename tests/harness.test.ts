@@ -12,7 +12,7 @@ after(() => server.stop());
 test('health answers ok', async () => {
   const res = await client(server.base).get('/health');
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body, { ok: true });
+  assert.equal(res.body.ok, true);
 });
 
 test('a class can be created, joined and deleted', { skip: !hasDatabase && 'needs DATABASE_URL' }, async () => {

@@ -32,6 +32,33 @@ export function getPrisma(): PrismaClient | null {
   return client;
 }
 
+export type DatabaseHealth = 'ok' | 'down' | 'unconfigured' | 'checking';
+const HEALTH_TTL_MS = 30_000;
+let health: { state: DatabaseHealth; checkedAt: number } = { state: 'checking', checkedAt: 0 };
+let healthCheck: Promise<void> | null = null;
+
+/**
+ * Whether class mode can reach its database, for /api/health. Never waits on the database: it
+ * returns the last result and refreshes it in the background at most every 30 seconds, so a
+ * health poller can't slow down or load a struggling database.
+ */
+export function databaseHealth(): DatabaseHealth {
+  const prisma = getPrisma();
+  if (!prisma) return 'unconfigured';
+  if (!healthCheck && Date.now() - health.checkedAt >= HEALTH_TTL_MS) {
+    healthCheck = prisma.$queryRaw`SELECT 1`
+      .then(
+        () => 'ok' as const,
+        () => 'down' as const,
+      )
+      .then((state) => {
+        health = { state, checkedAt: Date.now() };
+        healthCheck = null;
+      });
+  }
+  return health.state;
+}
+
 // Prisma codes for "can't reach the database" (P1001 unreachable, P1002 timed out, P1008
 // operation timed out, P1017 server closed the connection, P2037 too many connections).
 const DATABASE_DOWN_CODES = new Set(['P1001', 'P1002', 'P1008', 'P1017', 'P2037']);
