@@ -110,14 +110,14 @@ export function Situation({ text }: { text: string }) {
 }
 
 const ANSWERS = [
-  { variant: 'phish', label: 'Phish', shortcut: 'P', guessedPhish: true, Icon: FishIcon },
-  { variant: 'legit', label: 'Legit', shortcut: 'L', guessedPhish: false, Icon: ShieldCheckIcon },
+  { variant: 'phish', label: 'Phish', meaning: 'Scam', shortcut: 'P', guessedPhish: true, Icon: FishIcon },
+  { variant: 'legit', label: 'Legit', meaning: 'Real', shortcut: 'L', guessedPhish: false, Icon: ShieldCheckIcon },
 ] as const;
 
 export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined; onChoose: (guessedPhish: boolean) => void }) {
   return (
     <div role="group" aria-label="Is this message a phish or legit?" className="grid grid-cols-2 gap-4">
-      {ANSWERS.map(({ variant, label, shortcut, guessedPhish, Icon }) => {
+      {ANSWERS.map(({ variant, label, meaning, shortcut, guessedPhish, Icon }) => {
         const chosen = answer?.guessedPhish === guessedPhish;
         const state = !answer ? 'idle' : chosen ? 'chosen' : 'faded';
         return (
@@ -135,6 +135,8 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
               <Icon className="size-7" />
               {label}
             </span>
+            {/* The plain meaning, at every width: not every 12-year-old knows "phish" and "legit". */}
+            <span className="font-body text-small font-bold">{meaning}</span>
             <span className="font-body text-micro">
               {chosen ? 'Your answer' : <span className="hidden sm:inline">Press {shortcut}</span>}
             </span>

@@ -48,8 +48,9 @@ export function StartScreen(props: StartScreenProps) {
           </h1>
           <p className="hk-display mt-6 max-w-xl text-title text-primary">Spot the phish before it hooks you.</p>
           <p className="mt-3 max-w-xl text-ink-muted">
-            Real-looking emails, texts, and DMs. Decide which are phish and which are legit, then see the red flags you
-            missed.
+            Real-looking emails, texts, and DMs. Decide which are <strong className="text-ink">phish</strong> (scams made to
+            trick you) and which are <strong className="text-ink">legit</strong> (real and safe). Then see the{' '}
+            <strong className="text-ink">red flags</strong>: the warning signs you missed.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
             <button type="button" onClick={onStart} className={button('primary', 'xl')}>
