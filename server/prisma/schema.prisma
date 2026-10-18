@@ -23,6 +23,8 @@ model Class {
   /// Reset by joins, answers, and the teacher opening the dashboard or pressing
   /// "Keep this class". Classes idle for 7 days are deleted (see cleanup.ts).
   lastActivityAt DateTime @default(now())
+  /// Percent a student's best finished attempt needs to count as "Passed".
+  targetPercent  Int      @default(80)
   players        Player[]
 
   @@index([lastActivityAt])
@@ -32,11 +34,26 @@ model Player {
   id        String   @id @default(uuid())
   classId   String
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  nickname  String   @db.VarChar(20)
-  createdAt DateTime @default(now())
-  answers   Answer[]
+  nickname       String    @db.VarChar(20)
+  /// SHA-256 of "<player id>:<rejoin code>". The code itself is shown once, never stored.
+  rejoinCodeHash String?
+  createdAt      DateTime  @default(now())
+  attempts       Attempt[]
+  answers        Answer[]
 
   @@index([classId])
+}
+
+/// One play-through of the message set. Finished once every current message is answered.
+model Attempt {
+  id         String    @id @default(uuid())
+  playerId   String
+  player     Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  answers    Answer[]
+
+  @@index([playerId])
 }
 
 enum Choice {
@@ -48,11 +65,14 @@ model Answer {
   id        String   @id @default(uuid())
   playerId  String
   player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  attemptId String
+  attempt   Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   messageId String
   choice    Choice
   /// Graded by the server from shared/messages.ts, never taken from the client.
   correct   Boolean
   createdAt DateTime @default(now())
 
-  @@unique([playerId, messageId])
+  /// Only the first answer to each message within an attempt counts.
+  @@unique([attemptId, messageId])
 }

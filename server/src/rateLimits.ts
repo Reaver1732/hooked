@@ -11,16 +11,19 @@ type LimiterOptions = {
   tooMany: string;
   /** Defaults to the client IP (req.ip, correct because index.ts trusts Railway's proxies). */
   keyGenerator?: Options['keyGenerator'];
+  /** Count only requests that fail (4xx/5xx), e.g. wrong rejoin codes. */
+  failuresOnly?: boolean;
 };
 
 /** In-memory limiter, so counts are per server instance. */
-function limiter({ name, windowMs, limit, tooMany, keyGenerator }: LimiterOptions) {
+function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = false }: LimiterOptions) {
   return rateLimit({
     windowMs,
     limit,
     identifier: name,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
+    skipSuccessfulRequests: failuresOnly,
     ...(keyGenerator && { keyGenerator }),
     handler: (req, res, _next, options) => {
       const resetTime = (req as AugmentedRequest).rateLimit?.resetTime;
@@ -57,4 +60,31 @@ export const answerLimit = limiter({
   limit: 60,
   tooMany: 'You’re answering faster than anyone can read.',
   keyGenerator: (_req, res) => (res as Response).locals.playerId as string,
+});
+
+// Rejoin codes are 6 characters, so guessing is limited twice: per class (from any
+// number of IPs) and per IP (across classes). Only wrong guesses count, so a class
+// rejoining together from one school network never hits either limit.
+export const rejoinClassLimit = limiter({
+  name: 'rejoin-class',
+  windowMs: 10 * MINUTE,
+  limit: 30,
+  tooMany: 'Too many wrong rejoin codes for this class.',
+  keyGenerator: (req) => String(req.params.code ?? '').toUpperCase(),
+  failuresOnly: true,
+});
+export const rejoinIpLimit = limiter({
+  name: 'rejoin-ip',
+  windowMs: 10 * MINUTE,
+  limit: 30,
+  tooMany: 'Too many wrong rejoin codes from your network.',
+  failuresOnly: true,
+});
+
+/** Player progress lookups and attempt starts: generous, since a class shares one IP. */
+export const playerLimit = limiter({
+  name: 'player',
+  windowMs: 10 * MINUTE,
+  limit: 600,
+  tooMany: 'Too many requests from your network.',
 });

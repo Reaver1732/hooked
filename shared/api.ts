@@ -11,24 +11,59 @@ export const CLASS_IDLE_DAYS = 7;
 
 export type Choice = 'phish' | 'legit';
 
+/** Rejoin codes use the same unambiguous alphabet as class codes. */
+export const REJOIN_CODE_LENGTH = 6;
+export const DEFAULT_TARGET_PERCENT = 80;
+
 export type CreateClassResponse = { code: string; teacherKey: string };
 export type JoinClassRequest = { nickname: string };
-export type JoinClassResponse = { playerId: string };
-export type SubmitAnswerRequest = { playerId: string; messageId: string; choice: Choice };
-export type SubmitAnswerResponse = { correct: boolean; alreadyAnswered: boolean };
+/** The rejoin code is returned once, here; only its hash is stored. */
+export type JoinClassResponse = { playerId: string; nickname: string; rejoinCode: string };
+export type RejoinRequest = { nickname: string; rejoinCode: string };
+export type RejoinResponse = { playerId: string; nickname: string };
+
+/** The current unfinished attempt: its id and what this player has answered so far. */
+export type AttemptProgress = { attemptId: string; answers: { messageId: string; choice: Choice }[] };
+export type PlayerProgress = {
+  playerId: string;
+  nickname: string;
+  classCode: string;
+  currentAttempt: AttemptProgress | null;
+  finishedAttempts: number;
+};
+
+export type SubmitAnswerRequest = { playerId: string; attemptId: string; messageId: string; choice: Choice };
+export type SubmitAnswerResponse = { correct: boolean; alreadyAnswered: boolean; attemptFinished: boolean };
+export type ResetRejoinCodeResponse = { rejoinCode: string };
+export type UpdateClassRequest = { targetPercent: number };
 /** Returned when the teacher keeps the class alive (dashboard load or "Keep this class"). */
 export type KeepClassResponse = { expiresAt: string };
+
+export type Score = { correct: number; total: number; percent: number };
 
 export type ClassSummary = {
   code: string;
   /** ISO time the class will be deleted if nothing happens before then. */
   expiresAt: string;
+  targetPercent: number;
   playerCount: number;
   totalMessages: number;
-  /** Mean correct answers among players who answered at least one message; null if none have. */
-  averageCorrect: number | null;
-  players: { id: string; nickname: string; answered: number; correct: number }[];
+  /** Mean of best-attempt percentages among players with a finished attempt; null if none. */
+  averageBestPercent: number | null;
+  passedCount: number;
+  players: {
+    id: string;
+    nickname: string;
+    /** Finished attempts. */
+    attempts: number;
+    /** Messages answered in the current unfinished attempt, if there is one. */
+    inProgress: number | null;
+    best: Score | null;
+    passed: boolean;
+  }[];
+  /** From each player's best finished attempt. */
   mostMissedFlags: { type: FlagType; count: number }[];
+  /** From each player's best finished attempt. */
   perMessage: {
     id: string;
     kind: Message['kind'];
