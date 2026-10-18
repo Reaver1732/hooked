@@ -21,23 +21,39 @@ export class ApiRequestError extends Error {
   }
 }
 
+// The server gives up on the database after about 10 seconds, so a request still open after 15
+// is stuck somewhere on the way. Without this, a stalled request leaves "Joining…" up forever.
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let res: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    res = await fetch(`/api${path}`, {
-      ...init,
-      headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
-    });
-  } catch {
-    throw new ApiRequestError('Couldn’t reach the server. Check your connection and try again.', null);
+    let res: Response;
+    try {
+      res = await fetch(`/api${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
+      });
+    } catch {
+      throw new ApiRequestError(
+        controller.signal.aborted
+          ? 'The server is taking too long to answer. Try again in a minute.'
+          : 'Couldn’t reach the server. Check your connection and try again.',
+        null,
+      );
+    }
+    if (res.status === 204) return undefined as T;
+    const data: unknown = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = (data as ApiError | null)?.error ?? `Request failed (HTTP ${res.status})`;
+      throw new ApiRequestError(message, res.status);
+    }
+    return data as T;
+  } finally {
+    clearTimeout(timer);
   }
-  if (res.status === 204) return undefined as T;
-  const data: unknown = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = (data as ApiError | null)?.error ?? `Request failed (HTTP ${res.status})`;
-    throw new ApiRequestError(message, res.status);
-  }
-  return data as T;
 }
 
 const teacherHeaders = (teacherKey: string) => ({ 'X-Teacher-Key': teacherKey });
