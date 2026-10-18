@@ -3,9 +3,9 @@ import { CLASS_IDLE_DAYS, type ClassSummary } from '../../../shared/api.ts';
 import { FLAG_LABELS } from '../../../shared/flags.ts';
 import { api, ApiRequestError } from '../class/api.ts';
 import { dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
-import { button, CARD, DANGER_BUTTON, FOCUS_RING, FOCUS_RING_ON_DARK, INPUT_FRAME, PRIMARY_BUTTON } from '../components/buttonStyles.ts';
 import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { ClockIcon, FlagIcon, FishIcon, LockIcon, TrashIcon, UsersIcon } from '../components/icons.tsx';
+import { button, IconTile, Notice, TextButton } from '../design/parts.tsx';
 
 const REFRESH_MS = 5000;
 const WARN_MS = 24 * 60 * 60 * 1000;
@@ -198,12 +198,15 @@ export function DashboardScreen({ credentials, onGone }: Props) {
 
   if (gone) {
     return (
-      <section aria-labelledby="dashboard-heading" className={`${CARD} flex flex-col items-start gap-4 p-6`}>
-        <h2 id="dashboard-heading" ref={headingRef} tabIndex={-1} className="text-2xl font-black outline-none">
+      <section aria-labelledby="dashboard-heading" className="hk-card flex flex-col items-start gap-4 p-6 sm:p-8">
+        <IconTile tone="mark" size="lg">
+          <TrashIcon className="size-7" />
+        </IconTile>
+        <h2 id="dashboard-heading" ref={headingRef} tabIndex={-1} className="hk-display text-title outline-none">
           This class is gone
         </h2>
-        <p className="text-slate-700">{gone}</p>
-        <a href="/" className={`${PRIMARY_BUTTON} no-underline`}>
+        <p className="text-card-ink-muted">{gone}</p>
+        <a href="/" className={button('primary')}>
           Back to Hooked
         </a>
       </section>
@@ -213,27 +216,23 @@ export function DashboardScreen({ credentials, onGone }: Props) {
   const expiresSoon = summary !== null && new Date(summary.expiresAt).getTime() - Date.now() < WARN_MS;
 
   return (
-    <section aria-labelledby="dashboard-heading" className="flex flex-col gap-5">
-      <div className="rounded-3xl bg-linear-to-b from-sky-900 to-cyan-800 px-5 py-6 text-white shadow-lg sm:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <section aria-labelledby="dashboard-heading" className="flex flex-col gap-6">
+      <div className="rounded-card bg-raised px-5 py-6 sm:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
           <div>
-            <h2 id="dashboard-heading" ref={headingRef} tabIndex={-1} className="text-sm font-semibold tracking-wide text-sky-100 uppercase outline-none">
+            <h2 id="dashboard-heading" ref={headingRef} tabIndex={-1} className="text-micro font-bold tracking-wide text-ink-muted uppercase outline-none">
               Teacher dashboard
             </h2>
-            <p className="font-mono text-5xl font-black tracking-[0.12em]">
+            <p className="font-code text-display font-black tracking-[0.12em]">
               <span className="sr-only">Class code </span>
               {code}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => qrDialogRef.current?.showModal()}
-            className={`inline-flex min-h-10 items-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-slate-900 hover:bg-amber-200 ${FOCUS_RING_ON_DARK}`}
-          >
+          <button type="button" onClick={() => qrDialogRef.current?.showModal()} className={button('primary', 'sm')}>
             Show QR code
           </button>
         </div>
-        <p className="mt-3 text-xs text-sky-100" aria-live="off">
+        <p className="mt-3 text-micro text-ink-muted" aria-live="off">
           {updatedAt ? `Updated ${updatedAt.toLocaleTimeString()} · refreshes every 5 s` : 'Loading…'}
         </p>
       </div>
@@ -242,7 +241,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       <dialog
         ref={qrDialogRef}
         aria-labelledby="qr-dialog-heading"
-        className="m-auto w-[min(64rem,calc(100vw-1rem))] max-w-none rounded-3xl bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/75"
+        className="hk-card m-auto w-[min(64rem,calc(100vw-1rem))] max-w-none p-0 backdrop:bg-canvas/85"
       >
         <div className="px-5 py-6 sm:px-10 sm:py-8">
           <ClassJoinPanel
@@ -250,7 +249,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
             large
             heading={
               <div className="flex items-start justify-between gap-4">
-                <h2 id="qr-dialog-heading" className="text-2xl font-black tracking-tight sm:text-4xl">
+                <h2 id="qr-dialog-heading" className="hk-display text-title">
                   Scan to join, or enter the class code
                 </h2>
                 <form method="dialog">
@@ -265,63 +264,73 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       </dialog>
 
       {/* Live region stays mounted (so it announces) but takes no space while empty. */}
-      <div aria-live="polite" className="-mt-5">
+      <div aria-live="polite" className="-mt-6 flex flex-col">
         {error && (
-          <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-            {error.message}
-            {!error.fatal && summary && ' Showing the last results; retrying.'}
-          </p>
+          <div className="mt-6">
+            <Notice tone="error">
+              {error.message}
+              {!error.fatal && summary && ' Showing the last results; retrying.'}
+            </Notice>
+          </div>
         )}
-        {notice && <p className="mt-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-950 ring-1 ring-sky-200">{notice}</p>}
+        {notice && (
+          <div className="mt-6">
+            <Notice>{notice}</Notice>
+          </div>
+        )}
       </div>
 
       {summary && (
         <>
           {expiresSoon && (
-            <section aria-labelledby="expiry-warning-heading" className="rounded-2xl border-2 border-amber-500 bg-amber-100 p-5">
-              <h3 id="expiry-warning-heading" className="flex items-center gap-2 text-lg font-bold text-amber-950">
-                <ClockIcon className="size-6" />
+            <section aria-labelledby="expiry-warning-heading" className="hk-card border-4 border-primary p-5 sm:p-6">
+              <h3 id="expiry-warning-heading" className="hk-display flex items-center gap-3 text-heading">
+                <IconTile tone="primary">
+                  <ClockIcon className="size-6" />
+                </IconTile>
                 This class deletes soon
               </h3>
-              <p className="mt-1 text-amber-950">
+              <p className="mt-3 text-card-ink-muted">
                 Unless someone uses it, class {code} and all its results will be deleted on{' '}
-                <strong>{formatWhen(summary.expiresAt)}</strong>.
+                <strong className="text-card-ink">{formatWhen(summary.expiresAt)}</strong>.
               </p>
-              <button type="button" onClick={keepClass} aria-busy={keeping} className={`${PRIMARY_BUTTON} mt-3`}>
+              <button type="button" onClick={keepClass} aria-busy={keeping} className={`${button('primary')} mt-4`}>
                 {keeping ? 'Keeping…' : 'Keep this class'}
               </button>
             </section>
           )}
 
-          <div className={`${CARD} flex flex-wrap items-center justify-between gap-3 px-5 py-4`}>
-            <p className="flex items-center gap-2 text-sm text-slate-700">
-              <ClockIcon className="size-5 shrink-0 text-sky-800" />
-              <span>
-                Deletes on <strong className="text-slate-900">{formatWhen(summary.expiresAt)}</strong> if unused
-                <span className="block text-xs">Any join, answer, or visit here resets the {CLASS_IDLE_DAYS}-day timer.</span>
-              </span>
-            </p>
-            {!expiresSoon && (
-              <button type="button" onClick={keepClass} aria-busy={keeping} className={button('secondary', 'sm')}>
-                {keeping ? 'Keeping…' : 'Keep this class'}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="hk-card flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+              <p className="flex items-center gap-3 text-small text-card-ink-muted">
+                <ClockIcon className="size-5 shrink-0 text-card-ink" />
+                <span>
+                  Deletes on <strong className="text-card-ink">{formatWhen(summary.expiresAt)}</strong> if unused
+                  <span className="block text-micro">Any join, answer, or visit here resets the {CLASS_IDLE_DAYS}-day timer.</span>
+                </span>
+              </p>
+              {!expiresSoon && (
+                <button type="button" onClick={keepClass} aria-busy={keeping} className={button('secondary', 'sm')}>
+                  {keeping ? 'Keeping…' : 'Keep this class'}
+                </button>
+              )}
+            </div>
+
+            <div className="hk-card flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+              <p className="flex items-center gap-3 text-small text-card-ink-muted">
+                <LockIcon className="size-5 shrink-0 text-card-ink" />
+                Anyone with this link can manage your class. Keep it private.
+              </p>
+              <button type="button" onClick={copyLink} className={button('secondary', 'sm')}>
+                {copied ? 'Copied' : 'Copy dashboard link'}
               </button>
-            )}
+              <p aria-live="polite" className="sr-only">
+                {copied ? 'Dashboard link copied' : ''}
+              </p>
+            </div>
           </div>
 
-          <div className={`${CARD} flex flex-wrap items-center justify-between gap-3 px-5 py-4`}>
-            <p className="flex items-center gap-2 text-sm text-slate-700">
-              <LockIcon className="size-5 shrink-0 text-sky-800" />
-              Anyone with this link can manage your class. Keep it private.
-            </p>
-            <button type="button" onClick={copyLink} className={button('secondary', 'sm')}>
-              {copied ? 'Copied' : 'Copy dashboard link'}
-            </button>
-            <p aria-live="polite" className="sr-only">
-              {copied ? 'Dashboard link copied' : ''}
-            </p>
-          </div>
-
-          <dl className="grid grid-cols-3 gap-3">
+          <dl className="grid grid-cols-3 gap-3 sm:gap-4">
             <Stat icon={<UsersIcon className="size-5" />} label="Players" value={String(summary.playerCount)} />
             <Stat
               icon={<FishIcon className="size-5" />}
@@ -331,13 +340,13 @@ export function DashboardScreen({ credentials, onGone }: Props) {
             <Stat icon={<FlagIcon className="size-5" />} label="Passed" value={`${summary.passedCount} / ${summary.playerCount}`} />
           </dl>
 
-          <Panel icon={<UsersIcon className="size-5" />} title="Players" headingRef={playersHeadingRef}>
-            <form onSubmit={saveTarget} className="mt-3 flex flex-wrap items-end gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+          <Panel icon={<UsersIcon className="size-6" />} title="Players" headingRef={playersHeadingRef}>
+            <form onSubmit={saveTarget} className="mt-4 flex flex-wrap items-end gap-3 rounded-control bg-surface-muted p-4">
               <div>
-                <label htmlFor={targetId} className="block text-sm font-semibold">
+                <label htmlFor={targetId} className="block text-small font-bold">
                   Passing score
                 </label>
-                <span className="mt-1 flex items-center gap-1">
+                <span className="mt-1 flex items-center gap-2">
                   <input
                     id={targetId}
                     type="number"
@@ -348,9 +357,9 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                     required
                     value={targetDraft ?? String(summary.targetPercent)}
                     onChange={(e) => setTargetDraft(e.target.value)}
-                    className={`${INPUT_FRAME} min-h-10 w-20 text-base`}
+                    className="hk-input min-h-10 w-20"
                   />
-                  <span aria-hidden className="text-slate-700">
+                  <span aria-hidden className="font-bold">
                     %
                   </span>
                 </span>
@@ -358,28 +367,28 @@ export function DashboardScreen({ credentials, onGone }: Props) {
               <button type="submit" className={button('secondary', 'sm')}>
                 Save
               </button>
-              <p className="basis-full text-xs text-slate-700">A student passes when their best finished run reaches this score.</p>
+              <p className="basis-full text-micro text-card-ink-muted">A student passes when their best finished run reaches this score.</p>
             </form>
 
             {summary.players.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-700">Nobody has joined yet. Share the code {code}.</p>
+              <p className="mt-4 text-small text-card-ink-muted">Nobody has joined yet. Share the code {code}.</p>
             ) : (
               <>
-                <ul role="list" className="mt-2 divide-y divide-slate-100">
+                <ul role="list" className="mt-2 divide-y divide-line">
                   {summary.players.map((p) => (
-                    <li key={p.id} className="flex flex-col gap-2 py-3">
+                    <li key={p.id} className="flex flex-col gap-2 py-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 font-semibold wrap-break-word">{p.nickname}</span>
+                        <span className="min-w-0 text-heading font-bold wrap-break-word">{p.nickname}</span>
                         <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${p.passed ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-800'}`}
+                          className={`rounded-full px-3 py-0.5 text-micro font-bold ${p.passed ? 'bg-good text-on-good' : 'bg-surface-muted text-card-ink'}`}
                         >
                           {p.passed ? 'Passed' : 'Not yet'}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-700">
+                      <p className="text-small text-card-ink-muted">
                         {p.best ? (
                           <>
-                            Best <strong className="text-slate-900">{p.best.percent}%</strong> ({p.best.correct}/{p.best.total})
+                            Best <strong className="text-card-ink">{p.best.percent}%</strong> ({p.best.correct}/{p.best.total})
                           </>
                         ) : (
                           'No finished run yet'
@@ -389,20 +398,18 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                         {p.inProgress !== null && ` · playing now (${p.inProgress}/${summary.totalMessages})`}
                       </p>
                       {newCode?.playerId === p.id && (
-                        <p aria-live="polite" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200">
+                        <p aria-live="polite" className="rounded-control border-2 border-primary bg-surface-muted px-4 py-3 text-small">
                           New rejoin code for {newCode.nickname}:{' '}
-                          <strong className="font-mono text-base tracking-widest">{newCode.code}</strong>. It’s shown only once.{' '}
-                          <button type="button" onClick={() => setNewCode(null)} className={`rounded-sm font-semibold underline ${FOCUS_RING}`}>
-                            Done
-                          </button>
+                          <strong className="font-code text-heading tracking-widest">{newCode.code}</strong>. It’s shown only once.{' '}
+                          <TextButton onClick={() => setNewCode(null)}>Done</TextButton>
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         <button
                           type="button"
                           onClick={() => resetCode(p)}
                           aria-label={`Reset code for ${p.nickname}`}
-                          className={`rounded-lg border border-slate-400 px-2.5 py-1 text-xs font-semibold text-slate-800 hover:bg-sky-50 ${FOCUS_RING}`}
+                          className={button('secondary', 'sm')}
                         >
                           Reset code
                         </button>
@@ -410,7 +417,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                           type="button"
                           onClick={() => removePlayer(p.id, p.nickname)}
                           aria-label={`Remove ${p.nickname}`}
-                          className={`rounded-lg border border-slate-400 px-2.5 py-1 text-xs font-semibold text-slate-800 hover:bg-red-50 hover:text-red-800 ${FOCUS_RING}`}
+                          className={button('secondary', 'sm')}
                         >
                           Remove
                         </button>
@@ -418,71 +425,77 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                     </li>
                   ))}
                 </ul>
-                <button type="button" onClick={() => exportCsv(summary)} className={`${button('secondary', 'sm')} mt-3`}>
+                <button type="button" onClick={() => exportCsv(summary)} className={`${button('accent', 'sm')} mt-4`}>
                   Export CSV
                 </button>
               </>
             )}
           </Panel>
 
-          <Panel icon={<FlagIcon className="size-5" />} title="Most-missed red flags" subtitle="From each student’s best finished run: red flags in phish they marked Legit.">
-            {summary.mostMissedFlags.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-700">None yet.</p>
-            ) : (
-              <ol role="list" className="mt-2 divide-y divide-slate-100">
-                {summary.mostMissedFlags.map(({ type, count }) => (
-                  <li key={type} className="flex items-center justify-between gap-4 py-2.5">
-                    <span>{FLAG_LABELS[type]}</span>
-                    <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-bold text-red-800">
-                      {count}
-                      <span className="sr-only"> missed</span>
-                    </span>
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <Panel
+              icon={<FlagIcon className="size-6" />}
+              tone="mark"
+              title="Most-missed red flags"
+              subtitle="From each student’s best finished run: red flags in phish they marked Legit."
+            >
+              {summary.mostMissedFlags.length === 0 ? (
+                <p className="mt-4 text-small text-card-ink-muted">None yet.</p>
+              ) : (
+                <ol role="list" className="mt-2 divide-y divide-line">
+                  {summary.mostMissedFlags.map(({ type, count }) => (
+                    <li key={type} className="flex items-center justify-between gap-4 py-3">
+                      <span>{FLAG_LABELS[type]}</span>
+                      <span className="shrink-0 rounded-full bg-bad px-3 py-0.5 text-small font-bold text-on-bad">
+                        {count}
+                        <span className="sr-only"> missed</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Panel>
+
+            <Panel icon={<FishIcon className="size-6" />} title="Per message" subtitle="Percent correct in each student’s best finished run.">
+              <ol role="list" className="mt-2 divide-y divide-line">
+                {summary.perMessage.map((m, i) => (
+                  <li key={m.id} className="py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0 text-small">
+                        <span className="text-card-ink-muted">
+                          {i + 1}. {KIND_LABELS[m.kind]} ·{' '}
+                        </span>
+                        <span className={`rounded-full px-2 py-0.5 text-micro font-bold ${m.isPhish ? 'bg-bad text-on-bad' : 'bg-good text-on-good'}`}>
+                          {m.isPhish ? 'Phish' : 'Legit'}
+                        </span>{' '}
+                        <span className="wrap-break-word">{m.label}</span>
+                      </p>
+                      <p className="hk-display shrink-0 text-heading">
+                        {m.percentCorrect === null ? '–' : `${m.percentCorrect}%`}
+                        <span className="sr-only"> correct</span>
+                      </p>
+                    </div>
+                    <div aria-hidden className="mt-2 h-2 overflow-hidden rounded-full bg-surface-muted">
+                      <div className="h-full rounded-full bg-card-ink" style={{ width: `${m.percentCorrect ?? 0}%` }} />
+                    </div>
+                    <p className="mt-1 text-micro text-card-ink-muted">
+                      {m.answered} {m.answered === 1 ? 'answer' : 'answers'}
+                    </p>
                   </li>
                 ))}
               </ol>
-            )}
-          </Panel>
+            </Panel>
+          </div>
 
-          <Panel title="Per message" subtitle="Percent correct in each student’s best finished run.">
-            <ol role="list" className="mt-2 divide-y divide-slate-100">
-              {summary.perMessage.map((m, i) => (
-                <li key={m.id} className="py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 text-sm">
-                      <span className="text-slate-700">
-                        {i + 1}. {KIND_LABELS[m.kind]} ·{' '}
-                        <span className={m.isPhish ? 'font-semibold text-red-800' : 'font-semibold text-emerald-800'}>
-                          {m.isPhish ? 'Phish' : 'Legit'}
-                        </span>{' '}
-                        ·{' '}
-                      </span>
-                      <span className="wrap-break-word">{m.label}</span>
-                    </p>
-                    <p className="shrink-0 text-lg font-bold">
-                      {m.percentCorrect === null ? '–' : `${m.percentCorrect}%`}
-                      <span className="sr-only"> correct</span>
-                    </p>
-                  </div>
-                  <div aria-hidden className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-emerald-600" style={{ width: `${m.percentCorrect ?? 0}%` }} />
-                  </div>
-                  <p className="mt-1 text-xs text-slate-700">
-                    {m.answered} {m.answered === 1 ? 'answer' : 'answers'}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </Panel>
-
-          <section aria-labelledby="danger-heading" className="rounded-2xl border border-red-200 bg-white p-5">
-            <h3 id="danger-heading" className="text-lg font-bold">
+          <section aria-labelledby="danger-heading" className="hk-card border-4 border-bad p-5 sm:p-6">
+            <h3 id="danger-heading" className="hk-display text-heading">
               Delete this class
             </h3>
-            <p className="mt-1 text-sm text-slate-700">
+            <p className="mt-2 text-small text-card-ink-muted">
               Removes the class, its players, and all their answers right away. Students still playing will see that the
               class was closed.
             </p>
-            <button type="button" onClick={deleteClass} className={`${DANGER_BUTTON} mt-3`}>
+            <button type="button" onClick={deleteClass} className={`${button('danger')} mt-4`}>
               <TrashIcon className="size-5" />
               Delete class
             </button>
@@ -495,12 +508,12 @@ export function DashboardScreen({ credentials, onGone }: Props) {
 
 function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className={`${CARD} p-3 sm:p-4`}>
-      <dt className="flex items-center gap-1.5 text-xs font-medium text-slate-700 sm:text-sm">
-        <span className="text-sky-800">{icon}</span>
+    <div className="hk-card p-3 sm:p-5">
+      <dt className="flex items-center gap-2 text-micro font-bold text-card-ink-muted sm:text-small">
+        <span className="hidden text-card-ink sm:inline">{icon}</span>
         {label}
       </dt>
-      <dd className="mt-1 text-2xl font-black sm:text-3xl">{value}</dd>
+      <dd className="hk-display mt-1 text-title">{value}</dd>
     </div>
   );
 }
@@ -509,18 +522,19 @@ type PanelProps = {
   title: string;
   subtitle?: string;
   icon?: ReactNode;
+  tone?: 'accent' | 'mark';
   children: ReactNode;
   headingRef?: RefObject<HTMLHeadingElement | null>;
 };
 
-function Panel({ title, subtitle, icon, children, headingRef }: PanelProps) {
+function Panel({ title, subtitle, icon, tone = 'accent', children, headingRef }: PanelProps) {
   return (
-    <section className={`${CARD} p-4 sm:p-5`}>
-      <h3 ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="flex items-center gap-2 text-lg font-bold outline-none">
-        {icon && <span className="text-sky-800">{icon}</span>}
+    <section className="hk-card p-5 sm:p-6">
+      <h3 ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="hk-display flex items-center gap-3 text-heading outline-none">
+        {icon && <IconTile tone={tone}>{icon}</IconTile>}
         {title}
       </h3>
-      {subtitle && <p className="mt-1 text-sm text-slate-700">{subtitle}</p>}
+      {subtitle && <p className="mt-2 text-small text-card-ink-muted">{subtitle}</p>}
       {children}
     </section>
   );

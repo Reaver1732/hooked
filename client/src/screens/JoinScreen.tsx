@@ -2,9 +2,9 @@ import { useEffect, useId, useRef, useState, type FormEvent, type Ref } from 're
 import { CLASS_CODE_LENGTH, NICKNAME_MAX, REJOIN_CODE_LENGTH } from '../../../shared/api.ts';
 import { api, ApiRequestError } from '../class/api.ts';
 import { forgetPlayer, storedPlayer, type StoredPlayer } from '../class/storage.ts';
-import { button, CARD, FOCUS_RING, INPUT_FRAME, TEXT_INPUT } from '../components/buttonStyles.ts';
 import { UsersIcon } from '../components/icons.tsx';
 import { ScreenHeader } from '../components/ScreenHeader.tsx';
+import { button, Notice, TextButton } from '../design/parts.tsx';
 
 export type ClassSession = { code: string; nickname: string; playerId: string };
 
@@ -17,7 +17,9 @@ type Props = {
 };
 
 const cleanCode = (value: string, length: number) => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, length);
-const CODE_INPUT = `${INPUT_FRAME} mt-1.5 min-h-16 text-center font-mono text-3xl font-bold tracking-[0.3em] text-sky-950 uppercase`;
+const CODE_INPUT = 'hk-input mt-2 min-h-16 text-center font-code text-title font-bold tracking-[0.3em] uppercase';
+const LABEL = 'text-small font-bold';
+const FORM = 'hk-card flex flex-col gap-5 p-5 sm:p-6';
 
 export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
   const codeId = useId();
@@ -104,9 +106,11 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
   const errorBox = (
     <div aria-live="polite" className="-mt-5">
       {error && (
-        <p id={errorId} className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-200">
-          {error}
-        </p>
+        <div className="mt-5">
+          <Notice tone="error" id={errorId}>
+            {error}
+          </Notice>
+        </div>
       )}
     </div>
   );
@@ -114,7 +118,7 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
 
   const codeField = (ref?: Ref<HTMLInputElement>) => (
     <div>
-      <label htmlFor={codeId} className="text-sm font-semibold">
+      <label htmlFor={codeId} className={LABEL}>
         Class code
       </label>
       <input
@@ -135,10 +139,10 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
 
   const nicknameField = (
     <div>
-      <label htmlFor={nicknameId} className="text-sm font-semibold">
+      <label htmlFor={nicknameId} className={LABEL}>
         Nickname
       </label>
-      <p className="text-xs text-slate-700">
+      <p className="text-micro text-card-ink-muted">
         {mode === 'join' ? `Not your full name. Up to ${NICKNAME_MAX} characters.` : 'The nickname you joined with.'}
       </p>
       <input
@@ -151,7 +155,7 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
         autoComplete="off"
         spellCheck={false}
         aria-describedby={describedBy}
-        className={`${TEXT_INPUT} mt-1.5`}
+        className="hk-input mt-2"
       />
     </div>
   );
@@ -165,13 +169,13 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
       </ScreenHeader>
 
       {mode === 'join' ? (
-        <form onSubmit={join} className={`${CARD} flex flex-col gap-5 p-5 sm:p-6`}>
+        <form onSubmit={join} className={FORM}>
           {codeField()}
 
           <div aria-live="polite" className="-mt-5">
             {saved && (
-              <div className="mt-5 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
-                <p className="text-sm text-emerald-950">
+              <div className="mt-5 rounded-control bg-surface-muted p-4">
+                <p className="text-small">
                   You’ve played in this class on this device as <strong>{saved.nickname}</strong>.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-3">
@@ -210,11 +214,11 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
           </button>
         </form>
       ) : (
-        <form onSubmit={rejoin} className={`${CARD} flex flex-col gap-5 p-5 sm:p-6`}>
+        <form onSubmit={rejoin} className={FORM}>
           {codeField(rejoinFirstRef)}
           {nicknameField}
           <div>
-            <label htmlFor={rejoinCodeId} className="text-sm font-semibold">
+            <label htmlFor={rejoinCodeId} className={LABEL}>
               Rejoin code
             </label>
             <input
@@ -242,18 +246,17 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
         </form>
       )}
 
-      <p className="text-sm text-slate-700">
+      <p className="text-small text-ink-muted">
         {mode === 'join' ? 'Started on another device? ' : 'First time in this class? '}
-        <button
-          type="button"
+        <TextButton
           onClick={() => {
             setError(null);
             setMode(mode === 'join' ? 'rejoin' : 'join');
           }}
-          className={`rounded-sm font-semibold text-sky-900 underline ${FOCUS_RING}`}
+          className="text-ink"
         >
           {mode === 'join' ? 'Rejoin with your code' : 'Join as a new player'}
-        </button>
+        </TextButton>
       </p>
     </section>
   );

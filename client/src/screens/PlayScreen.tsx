@@ -1,194 +1,60 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { button, FOCUS_RING } from '../components/buttonStyles.ts';
-import { HighlightNotes } from '../components/HighlightNotes.tsx';
-import { CheckCircleIcon, FishIcon, ShieldCheckIcon, XCircleIcon } from '../components/icons.tsx';
+import { useMemo } from 'react';
 import { MessageView } from '../components/MessageView.tsx';
-import type { Message } from '../../../shared/messages.ts';
-import { isCorrect, type Answer } from '../game/types.ts';
+import { AnswerButtons, KeysHint, NextButton, Notes, Situation, Verdict } from '../design/parts.tsx';
+import { isCorrect } from '../game/types.ts';
+import { usePlayState, type PlayStateOptions } from '../game/usePlayState.ts';
 
-type Props = {
-  deck: Message[];
-  onFinish: (answers: Answer[]) => void;
-  /** Called once per message when it's first answered (used to report to a class). */
-  onAnswer?: (answer: Answer) => void;
-  /** Answers already given to the first messages (resuming a class attempt). */
-  initialAnswers?: Answer[];
-};
-
-export function PlayScreen({ deck, onFinish, onAnswer, initialAnswers = [] }: Props) {
-  const [index, setIndex] = useState(initialAnswers.length);
-  const [answers, setAnswers] = useState<Answer[]>(initialAnswers);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const nextRef = useRef<HTMLButtonElement>(null);
-  // Guards against two answers for one message (e.g. P then L before a re-render).
-  const lastAnsweredRef = useRef(initialAnswers.length - 1);
-
-  const message = deck[index];
-  const answer: Answer | undefined = answers[index];
-  const answered = answer !== undefined;
-  const isLast = index === deck.length - 1;
-
-  const choose = useCallback(
-    (guessedPhish: boolean) => {
-      if (lastAnsweredRef.current >= index) return;
-      lastAnsweredRef.current = index;
-      const newAnswer = { message, guessedPhish };
-      setAnswers((prev) => [...prev, newAnswer]);
-      onAnswer?.(newAnswer);
-    },
-    [index, message, onAnswer],
-  );
-
-  const next = useCallback(() => {
-    if (isLast) onFinish(answers);
-    else setIndex((i) => i + 1);
-  }, [isLast, onFinish, answers]);
-
-  // New message: start at the top and put focus on the progress heading.
-  useEffect(() => {
-    window.scrollTo({ top: 0 });
-    headingRef.current?.focus({ preventScroll: true });
-  }, [index]);
-
-  // Answered: the answer buttons are now disabled, so hand focus to Next.
-  useEffect(() => {
-    if (answered) nextRef.current?.focus({ preventScroll: true });
-  }, [answered]);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const key = e.key.toLowerCase();
-      if (!answered && (key === 'p' || key === 'l')) {
-        e.preventDefault();
-        choose(key === 'p');
-      } else if (answered && key === 'enter' && !e.repeat) {
-        // Let a focused button (e.g. Next itself) handle its own Enter.
-        if (e.target instanceof Element && e.target.closest('button, a, input, select, textarea')) return;
-        e.preventDefault();
-        next();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [answered, choose, next]);
-
-
-  const verdict = answer && verdictFor(isCorrect(answer), message.isPhish);
+export function PlayScreen(props: PlayStateOptions) {
+  const { deck } = props;
+  const { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdict } = usePlayState(props);
+  const correctSoFar = answers.filter(isCorrect).length;
+  // The situation line is drawn here, so the message card renders without it.
+  const card = useMemo(() => ({ ...message, context: undefined }), [message]);
 
   return (
-    <section aria-labelledby="progress-heading" className="flex flex-col gap-5">
-      <div>
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 id="progress-heading" ref={headingRef} tabIndex={-1} className="text-sm font-semibold text-slate-700 outline-none">
-            <span className="sr-only">Message </span>
-            {index + 1} of {deck.length}
-          </h2>
-          <p className="hidden text-xs text-slate-700 sm:block">
-            Keys: <kbd className="font-sans font-bold">P</kbd> phish · <kbd className="font-sans font-bold">L</kbd> legit ·{' '}
-            <kbd className="font-sans font-bold">Enter</kbd> next
-          </p>
+    <section aria-labelledby="progress-heading" className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-10">
+      <div className="flex min-w-0 flex-col gap-5">
+        <div className="rounded-card bg-raised px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <h2 id="progress-heading" ref={headingRef} tabIndex={-1} className="hk-display text-heading outline-none">
+              Message {index + 1} <span className="text-ink-muted">of {deck.length}</span>
+            </h2>
+            <p className="rounded-full bg-canvas px-3 py-1 text-small font-bold text-accent">{correctSoFar} correct</p>
+          </div>
+          {/* Phones: one chunky bar. Wider: a pill per message, colored once answered. */}
+          <div aria-hidden className="mt-3 h-3 overflow-hidden rounded-full bg-track sm:hidden">
+            <div className="hk-fill h-full rounded-full bg-fill" style={{ width: `${(answers.length / deck.length) * 100}%` }} />
+          </div>
+          <ol aria-hidden className="mt-3 hidden gap-2 sm:flex">
+            {deck.map((m, i) => {
+              const a = answers[i];
+              const color = a ? (isCorrect(a) ? 'bg-good' : 'bg-bad') : i === index ? 'bg-primary' : 'bg-track';
+              return <li key={m.id} className={`h-3 flex-1 rounded-full ${color}`} />;
+            })}
+          </ol>
         </div>
-        {/* Phones: one continuous bar (15 segments get too thin at 375px). */}
-        <div aria-hidden className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 sm:hidden">
-          <div className="h-full rounded-full bg-sky-700" style={{ width: `${(answers.length / deck.length) * 100}%` }} />
+
+        {message.context && <Situation text={message.context} />}
+
+        {/* The message keeps a neutral system font so it still looks like the app it came from. */}
+        <div className="hk-marks font-message text-card-ink">
+          <MessageView message={card} revealed={answered} />
         </div>
-        {/* Wider screens: one segment per message, green/red once answered, light blue for the current one. */}
-        <ol aria-hidden className="mt-2 hidden gap-1 sm:flex">
-          {deck.map((m, i) => {
-            const a = answers[i];
-            const color = a ? (isCorrect(a) ? 'bg-emerald-600' : 'bg-red-600') : i === index ? 'bg-sky-400' : 'bg-slate-200';
-            return <li key={m.id} className={`h-2 flex-1 rounded-full ${color}`} />;
-          })}
-        </ol>
       </div>
 
-      <MessageView message={message} revealed={answered} />
-
-      <div role="group" aria-label="Is this message a phish or legit?" className="grid grid-cols-2 gap-3">
-        <AnswerButton label="Phish" shortcut="P" variant="phish" chosen={answer?.guessedPhish === true} disabled={answered} onClick={() => choose(true)} />
-        <AnswerButton label="Legit" shortcut="L" variant="legit" chosen={answer?.guessedPhish === false} disabled={answered} onClick={() => choose(false)} />
-      </div>
-
-      <div aria-live="polite" aria-atomic="true">
-        {verdict && (
-          <p
-            className={`flex items-start gap-3 rounded-2xl px-4 py-3 ring-1 ${verdict.correct ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-red-50 text-red-900 ring-red-200'}`}
-          >
-            {verdict.correct ? <CheckCircleIcon className="mt-0.5 size-6 shrink-0" /> : <XCircleIcon className="mt-0.5 size-6 shrink-0" />}
-            <span>
-              <span className="block text-lg font-bold">{verdict.headline}</span>
-              {verdict.detail}
-            </span>
-          </p>
+      <div className="flex flex-col gap-5">
+        <AnswerButtons answer={answer} onChoose={choose} />
+        <KeysHint />
+        <Verdict verdict={verdict} />
+        {answered && (
+          <>
+            <Notes message={message} />
+            <div className="flex justify-end">
+              <NextButton buttonRef={nextRef} isLast={isLast} onNext={next} />
+            </div>
+          </>
         )}
       </div>
-
-      {answered && (
-        <>
-          <HighlightNotes message={message} />
-          <button ref={nextRef} type="button" onClick={next} className={`${button('primary', 'lg')} self-end`}>
-            {isLast ? 'See results' : 'Next'}
-            <span aria-hidden>→</span>
-          </button>
-        </>
-      )}
     </section>
-  );
-}
-
-function verdictFor(correct: boolean, isPhish: boolean) {
-  if (correct) {
-    return isPhish
-      ? { correct, headline: 'Correct! Nice catch.', detail: 'That one was a phish.' }
-      : { correct, headline: 'Correct!', detail: 'That one was legit.' };
-  }
-  return isPhish
-    ? { correct, headline: 'Incorrect. You got hooked.', detail: 'That one was a phish.' }
-    : { correct, headline: 'Incorrect. False alarm.', detail: 'That one was legit.' };
-}
-
-const VARIANT_CLASSES = {
-  phish: {
-    base: 'border-red-300 bg-red-50 text-red-800 enabled:hover:bg-red-100',
-    chosen: 'border-red-700 bg-red-700 text-white',
-    icon: FishIcon,
-  },
-  legit: {
-    base: 'border-emerald-300 bg-emerald-50 text-emerald-800 enabled:hover:bg-emerald-100',
-    chosen: 'border-emerald-700 bg-emerald-700 text-white',
-    icon: ShieldCheckIcon,
-  },
-};
-
-type AnswerButtonProps = {
-  label: string;
-  shortcut: string;
-  variant: keyof typeof VARIANT_CLASSES;
-  chosen: boolean;
-  disabled: boolean;
-  onClick: () => void;
-};
-
-function AnswerButton({ label, shortcut, variant, chosen, disabled, onClick }: AnswerButtonProps) {
-  const { base, chosen: chosenClasses, icon: Icon } = VARIANT_CLASSES[variant];
-  // Unchosen buttons fade once answered; disabled controls are exempt from contrast rules.
-  const state = chosen ? chosenClasses : disabled ? `${base} opacity-40` : base;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-keyshortcuts={shortcut}
-      className={`flex min-h-20 flex-col items-center justify-center gap-0.5 rounded-2xl border-2 px-3 text-xl font-bold shadow-sm disabled:cursor-default disabled:shadow-none ${state} ${FOCUS_RING}`}
-    >
-      <span className="flex items-center gap-2">
-        <Icon className="size-6" />
-        {label}
-      </span>
-      <span className="text-xs font-medium">
-        {chosen ? 'Your answer' : <span className="hidden sm:inline">Press {shortcut}</span>}
-      </span>
-    </button>
   );
 }

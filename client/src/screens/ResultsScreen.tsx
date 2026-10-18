@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { FLAG_LABELS, mostMissedFlags } from '../../../shared/flags.ts';
-import { button, CARD, SECONDARY_BUTTON } from '../components/buttonStyles.ts';
 import { FishIcon, FlagIcon, LifebuoyIcon, ShieldCheckIcon } from '../components/icons.tsx';
+import { button, IconTile, StepNumber } from '../design/parts.tsx';
 import { isCorrect, type Answer } from '../game/types.ts';
 
 type Props = {
@@ -46,104 +46,103 @@ export function ResultsScreen({ answers, onPlayAgain, onPasswordCheck, classCode
   const falseAlarms = legit.filter((a) => a.guessedPhish).length;
 
   return (
-    <section aria-labelledby="results-heading" className="flex flex-col gap-5">
-      <div className="relative overflow-hidden rounded-3xl bg-linear-to-b from-sky-900 to-cyan-800 px-6 py-8 text-white shadow-lg sm:px-10">
-        <FishIcon className="absolute -right-4 -bottom-3 hidden size-32 -rotate-12 text-sky-700/50 sm:block" />
-        <h2 id="results-heading" ref={headingRef} tabIndex={-1} className="text-sm font-semibold tracking-wide text-sky-100 uppercase outline-none">
+    <section aria-labelledby="results-heading" className="flex flex-col gap-6">
+      <div className="relative overflow-hidden rounded-card bg-raised px-6 py-8 sm:px-10">
+        <FishIcon className="hk-bob absolute -right-4 -bottom-4 hidden size-36 text-accent-soft sm:block" />
+        <h2 id="results-heading" ref={headingRef} tabIndex={-1} className="text-micro font-bold tracking-wide text-ink-muted uppercase outline-none">
           Your score
         </h2>
-        <p className="relative mt-1 text-7xl font-black tracking-tight">
-          {score} <span className="text-sky-200">/</span> {answers.length}
+        <p className="hk-display relative mt-1 text-display">
+          {score} <span className="text-ink-muted">/</span> {answers.length}
         </p>
-        <p className="relative mt-3 text-2xl font-bold text-amber-300">{titleFor(score, answers.length)}</p>
-        <p className="relative mt-2 max-w-md text-lg text-sky-50">
+        <p className="hk-display relative mt-3 text-title text-primary">{titleFor(score, answers.length)}</p>
+        <p className="relative mt-2 max-w-xl text-ink">
           You caught {caught} of {phish.length} phish
           {legit.length > 0 &&
             ` and trusted ${legit.length - falseAlarms} of ${legit.length} legit ${plural(legit.length, 'message', 'messages')}`}
           .
         </p>
         {classCode && (
-          <p className="relative mt-4 max-w-md text-sm text-sky-100">
-            Your answers went to class <span className="font-mono font-semibold text-white">{classCode}</span>. Your best
-            run counts for the class, so you can play again to try to beat it.
+          <p className="relative mt-4 max-w-xl text-small text-ink-muted">
+            Your answers went to class <span className="font-code font-bold text-ink">{classCode}</span>. Your best run
+            counts for the class, so you can play again to try to beat it.
           </p>
         )}
+        <div className="relative mt-6 flex flex-wrap gap-4">
+          <button type="button" onClick={onPlayAgain} className={button('primary', 'lg')}>
+            Play again
+          </button>
+          <button type="button" onClick={onPasswordCheck} className={button('secondary', 'lg')}>
+            Check a password
+          </button>
+        </div>
       </div>
 
-      <section aria-labelledby="missed-heading" className={`${CARD} p-4 sm:p-5`}>
-        <h3 id="missed-heading" className="flex items-center gap-2 text-lg font-bold">
-          <span className="grid size-8 place-items-center rounded-lg bg-red-100 text-red-700">
-            <FlagIcon className="size-5" />
-          </span>
-          Most-missed red flags
-        </h3>
-        {mostMissed.length === 0 ? (
-          <p className="mt-3 text-slate-700">
-            {missedPhish.length === 0 ? 'None. You caught every phish.' : 'The phish you missed had no tagged red flags.'}
-          </p>
-        ) : (
-          <>
-            <p className="mt-2 text-sm text-slate-700">
-              Red flags in the {missedPhish.length} {plural(missedPhish.length, 'phish', 'phish')} you marked Legit.
+      <div className="grid gap-6 md:grid-cols-2 md:items-start">
+        <section aria-labelledby="missed-heading" className="hk-card p-5 sm:p-6">
+          <h3 id="missed-heading" className="hk-display flex items-center gap-3 text-heading">
+            <IconTile tone="mark">
+              <FlagIcon className="size-6" />
+            </IconTile>
+            Most-missed red flags
+          </h3>
+          {mostMissed.length === 0 ? (
+            <p className="mt-4 text-card-ink-muted">
+              {missedPhish.length === 0 ? 'None. You caught every phish.' : 'The phish you missed had no tagged red flags.'}
             </p>
-            <ol role="list" className="mt-3 divide-y divide-slate-100">
-              {mostMissed.map(([type, count]) => (
-                <li key={type} className="flex items-center justify-between gap-4 py-2.5">
-                  <span>{FLAG_LABELS[type]}</span>
-                  <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-bold text-red-800">
-                    {count}
-                    <span className="sr-only"> missed</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </>
-        )}
-      </section>
+          ) : (
+            <>
+              <p className="mt-3 text-small text-card-ink-muted">
+                Red flags in the {missedPhish.length} {plural(missedPhish.length, 'phish', 'phish')} you marked Legit.
+              </p>
+              <ol role="list" className="mt-2 divide-y divide-line">
+                {mostMissed.map(([type, count]) => (
+                  <li key={type} className="flex items-center justify-between gap-4 py-3">
+                    <span>{FLAG_LABELS[type]}</span>
+                    <span className="shrink-0 rounded-full bg-bad px-3 py-0.5 text-small font-bold text-on-bad">
+                      {count}
+                      <span className="sr-only"> missed</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+        </section>
 
-      <section aria-labelledby="false-alarms-heading" className={`${CARD} p-4 sm:p-5`}>
-        <h3 id="false-alarms-heading" className="flex items-center gap-2 text-lg font-bold">
-          <span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-800">
-            <ShieldCheckIcon className="size-5" />
-          </span>
-          False alarms
-        </h3>
-        <p className="mt-3 text-slate-700">
-          <span className="text-3xl font-black text-slate-900">{falseAlarms}</span> of {legit.length} legit{' '}
-          {plural(legit.length, 'message', 'messages')} marked Phish.
-        </p>
-      </section>
+        <section aria-labelledby="false-alarms-heading" className="hk-card p-5 sm:p-6">
+          <h3 id="false-alarms-heading" className="hk-display flex items-center gap-3 text-heading">
+            <IconTile>
+              <ShieldCheckIcon className="size-6" />
+            </IconTile>
+            False alarms
+          </h3>
+          <p className="mt-4 text-card-ink-muted">
+            <span className="hk-display text-title text-card-ink">{falseAlarms}</span> of {legit.length} legit{' '}
+            {plural(legit.length, 'message', 'messages')} marked Phish.
+          </p>
+        </section>
+      </div>
 
-      <section aria-labelledby="hooked-help-heading" className="rounded-2xl bg-sky-100/70 p-5 ring-1 ring-sky-200 sm:p-6">
-        <h3 id="hooked-help-heading" className="flex items-center gap-2 text-lg font-bold text-slate-900">
-          <span className="grid size-8 place-items-center rounded-lg bg-white text-sky-800">
-            <LifebuoyIcon className="size-5" />
-          </span>
+      <section aria-labelledby="hooked-help-heading" className="rounded-card bg-raised p-5 sm:p-6">
+        <h3 id="hooked-help-heading" className="hk-display flex items-center gap-3 text-heading">
+          <IconTile tone="primary">
+            <LifebuoyIcon className="size-6" />
+          </IconTile>
           If you ever do get hooked
         </h3>
-        <p className="mt-2 text-sm text-slate-700">It happens to careful people too. Acting quickly keeps it small.</p>
-        <ol className="mt-4 flex flex-col gap-3">
+        <p className="mt-3 text-small text-ink-muted">It happens to careful people too. Acting quickly keeps it small.</p>
+        <ol className="mt-4 grid gap-4 md:grid-cols-2">
           {HOOKED_STEPS.map(([lead, rest], i) => (
-            <li key={lead} className="flex gap-3 text-sm leading-relaxed text-slate-700">
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-sky-800 text-xs font-bold text-white">
-                {i + 1}
-              </span>
+            <li key={lead} className="flex gap-3 text-small text-ink-muted">
+              <StepNumber n={i + 1} />
               <span>
-                <strong className="text-slate-900">{lead}</strong> {rest}
+                <strong className="text-ink">{lead}</strong> {rest}
               </span>
             </li>
           ))}
         </ol>
       </section>
-
-      <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={onPlayAgain} className={button('primary', 'lg')}>
-          Play again
-        </button>
-        <button type="button" onClick={onPasswordCheck} className={SECONDARY_BUTTON}>
-          Check a password
-        </button>
-      </div>
     </section>
   );
 }

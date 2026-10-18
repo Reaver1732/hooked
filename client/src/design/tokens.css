@@ -1,0 +1,147 @@
+/*
+ * Hooked design tokens ("Arcade Reef"). Every color, font, size, radius and shadow in
+ * the app comes from here; see README.md in this folder for how they're used.
+ * Message mockups (src/components/MessageView.tsx and its parts) are the exception:
+ * they imitate other apps, so they keep their own neutral styling.
+ */
+@import "@fontsource-variable/fredoka";
+@import "@fontsource-variable/nunito";
+
+:root {
+  /* Color: canvas and text on it */
+  --hk-canvas: #0d1b3e;
+  --hk-raised: #172b5c;
+  --hk-ink: #ffffff;
+  --hk-ink-muted: #c3ceee;
+
+  /* Color: cards and text on them */
+  --hk-surface: #ffffff;
+  --hk-surface-muted: #eef2fb;
+  --hk-card-ink: #0d1b3e;
+  --hk-card-ink-muted: #46527a;
+  --hk-line: #d5dcef;
+  --hk-input-border: #6d7fb3;
+
+  /* Color: actions and emphasis */
+  --hk-primary: #ffd23f;
+  --hk-primary-hover: #ffdc66;
+  --hk-primary-edge: #b88a00;
+  --hk-on-primary: #0d1b3e;
+  --hk-accent: #2be3c8;
+  --hk-accent-hover: #5aebd6;
+  --hk-accent-edge: #129c88;
+  --hk-accent-soft: #233f7d;
+  --hk-on-accent: #0d1b3e;
+  --hk-mark: #ff6b57;
+  --hk-logo-badge: #ff6b57;
+  --hk-logo-hook: #0d1b3e;
+
+  /* Color: right/legit and wrong/phish */
+  --hk-good: #2be3c8;
+  --hk-good-hover: #5aebd6;
+  --hk-good-edge: #129c88;
+  --hk-on-good: #0d1b3e;
+  --hk-bad: #ff6b57;
+  --hk-bad-hover: #ff8473;
+  --hk-bad-edge: #c43f2d;
+  --hk-on-bad: #0d1b3e;
+
+  /* Color: progress and focus */
+  --hk-track: #22386f;
+  --hk-fill: #2be3c8;
+  --hk-focus: #ffffff;
+  --hk-focus-on-surface: #0d1b3e;
+  --hk-link-line: #2be3c8;
+  --hk-link-line-on-surface: #46527a;
+
+  /* Type */
+  --hk-font-display: "Fredoka Variable", ui-rounded, system-ui, sans-serif;
+  --hk-font-body: "Nunito Variable", system-ui, sans-serif;
+  --hk-font-code: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --hk-font-message: ui-sans-serif, system-ui, sans-serif;
+  --hk-display-weight: 700;
+  --hk-display-tracking: -0.01em;
+  --hk-text-jumbo: clamp(3rem, 1.8rem + 6vw, 6rem);
+  --hk-text-display: clamp(3rem, 2.2rem + 4vw, 4.75rem);
+  --hk-text-display-lh: 0.95;
+  --hk-text-title: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --hk-text-title-lh: 1.15;
+  --hk-text-heading: 1.25rem;
+  --hk-text-heading-lh: 1.25;
+  --hk-text-body: 1.0625rem;
+  --hk-text-body-lh: 1.55;
+  --hk-text-small: 0.9375rem;
+  --hk-text-small-lh: 1.45;
+  --hk-text-micro: 0.8125rem;
+  --hk-text-micro-lh: 1.35;
+
+  /* Shape and depth */
+  --hk-radius-tight: 6px;
+  --hk-radius-chip: 12px;
+  --hk-radius-control: 18px;
+  --hk-radius-card: 26px;
+  --hk-shadow-card: 0 8px 0 #071029;
+  --hk-shadow-key: 0 2px 0 #071029;
+  --hk-control-lift: 6px;
+  --hk-control-press: 4px;
+
+  /* Secondary buttons */
+  --hk-secondary-bg: #ffffff;
+  --hk-secondary-hover: #eef2fb;
+  --hk-secondary-ink: #0d1b3e;
+  --hk-secondary-edge: #6d7fb3;
+}
+
+/* `inline` makes each utility read the --hk-* variable where it's used. */
+@theme inline {
+  --color-canvas: var(--hk-canvas);
+  --color-raised: var(--hk-raised);
+  --color-ink: var(--hk-ink);
+  --color-ink-muted: var(--hk-ink-muted);
+  --color-surface: var(--hk-surface);
+  --color-surface-muted: var(--hk-surface-muted);
+  --color-card-ink: var(--hk-card-ink);
+  --color-card-ink-muted: var(--hk-card-ink-muted);
+  --color-line: var(--hk-line);
+  --color-primary: var(--hk-primary);
+  --color-on-primary: var(--hk-on-primary);
+  --color-accent: var(--hk-accent);
+  --color-accent-soft: var(--hk-accent-soft);
+  --color-on-accent: var(--hk-on-accent);
+  --color-mark: var(--hk-mark);
+  --color-logo-badge: var(--hk-logo-badge);
+  --color-logo-hook: var(--hk-logo-hook);
+  --color-good: var(--hk-good);
+  --color-on-good: var(--hk-on-good);
+  --color-bad: var(--hk-bad);
+  --color-on-bad: var(--hk-on-bad);
+  --color-track: var(--hk-track);
+  --color-fill: var(--hk-fill);
+
+  --font-display: var(--hk-font-display);
+  --font-body: var(--hk-font-body);
+  --font-code: var(--hk-font-code);
+  --font-message: var(--hk-font-message);
+
+  --text-jumbo: var(--hk-text-jumbo);
+  --text-jumbo--line-height: 1;
+  --text-display: var(--hk-text-display);
+  --text-display--line-height: var(--hk-text-display-lh);
+  --text-title: var(--hk-text-title);
+  --text-title--line-height: var(--hk-text-title-lh);
+  --text-heading: var(--hk-text-heading);
+  --text-heading--line-height: var(--hk-text-heading-lh);
+  --text-body: var(--hk-text-body);
+  --text-body--line-height: var(--hk-text-body-lh);
+  --text-small: var(--hk-text-small);
+  --text-small--line-height: var(--hk-text-small-lh);
+  --text-micro: var(--hk-text-micro);
+  --text-micro--line-height: var(--hk-text-micro-lh);
+
+  --radius-tight: var(--hk-radius-tight);
+  --radius-chip: var(--hk-radius-chip);
+  --radius-control: var(--hk-radius-control);
+  --radius-card: var(--hk-radius-card);
+
+  --shadow-card: var(--hk-shadow-card);
+}

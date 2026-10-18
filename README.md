@@ -36,7 +36,7 @@ flowchart LR
   S -- "serves the built client" --> B
 ```
 
-- **Client:** React 19, Vite, TypeScript and Tailwind CSS v4. All game state lives in React; solo play needs no server calls. Messages live in `shared/messages.ts`, and `npm run check:messages` verifies every highlight matches its message text exactly once.
+- **Client:** React 19, Vite, TypeScript and Tailwind CSS v4. All game state lives in React; solo play needs no server calls. Every color, font size, radius and shadow comes from one set of design tokens (`client/src/design`). Messages live in `shared/messages.ts`, and `npm run check:messages` verifies every highlight matches its message text exactly once.
 - **Server:** Express 5 in TypeScript. It serves the built client and a small JSON API for classes. It grades answers itself from the same shared message data, so the client never reports whether it was right. All input is validated with zod (only a nickname or an answer is accepted), and requests are rate limited in ways that don't penalize a whole classroom sharing one network.
 - **Database:** Postgres through Prisma 7 with four tables: `Class`, `Player`, `Attempt`, `Answer`. Each play-through is an attempt; only the first answer to each message within an attempt counts, and a student's class score is their best finished attempt. The 60-player cap is enforced in a single SQL statement, so a whole class can join at once. An hourly job deletes classes that haven't been used for 7 days.
 - **Hosting:** one Railway service plus Railway Postgres. Railway runs `npm run build`, then the pre-deploy command `npm run db:migrate` (a failed migration leaves the previous version running), then `npm start`, with a health check on `/api/health`.
@@ -98,6 +98,7 @@ To deploy on Railway, create a service from the repo plus a Postgres database, t
 ## Credits
 
 - Passphrase words from the [EFF Long Wordlist](https://www.eff.org/dice) (CC BY 3.0).
+- Fonts: [Fredoka](https://fonts.google.com/specimen/Fredoka) and [Nunito](https://fonts.google.com/specimen/Nunito) (SIL Open Font License), self-hosted through [Fontsource](https://fontsource.org).
 - Breach data from the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) Pwned Passwords API by Troy Hunt. HIBP's API documentation states that the Pwned Passwords API has no licensing or attribution requirements; we credit it here and in the app anyway.
 - All senders, companies, games, and services in the game's messages are fictional.
 

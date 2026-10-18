@@ -1,6 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
-import { BACK_LINK } from './buttonStyles.ts';
-import { ChevronLeftIcon } from './icons.tsx';
+import { BackButton, IconTile } from '../design/parts.tsx';
 
 type Props = {
   id: string;
@@ -15,19 +14,14 @@ type Props = {
 export function ScreenHeader({ id, headingRef, icon, title, children, onBack }: Props) {
   return (
     <div className="flex flex-col gap-4">
-      {onBack && (
-        <button type="button" onClick={onBack} className={BACK_LINK}>
-          <ChevronLeftIcon className="size-4" />
-          Back
-        </button>
-      )}
+      {onBack && <BackButton onClick={onBack} />}
       <div className="flex items-start gap-4">
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-800 text-white shadow-sm">{icon}</span>
+        <IconTile size="lg">{icon}</IconTile>
         <div className="min-w-0">
-          <h2 id={id} ref={headingRef} tabIndex={-1} className="text-3xl font-black tracking-tight outline-none">
+          <h2 id={id} ref={headingRef} tabIndex={-1} className="hk-display text-title outline-none">
             {title}
           </h2>
-          {children && <div className="mt-1.5 text-slate-700">{children}</div>}
+          {children && <div className="mt-2 text-ink-muted">{children}</div>}
         </div>
       </div>
     </div>

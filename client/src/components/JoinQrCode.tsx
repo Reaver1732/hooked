@@ -13,7 +13,8 @@ export function JoinQrCode({ url, sizeClass = 'max-w-72 sm:max-w-80' }: { url: s
     let live = true;
     import('qrcode')
       .then(({ toDataURL }) =>
-        toDataURL(url, { errorCorrectionLevel: 'M', margin: 2, width: 640, color: { dark: '#0f172a', light: '#ffffff' } }),
+        // Card ink on the card surface (design tokens); a data URL can't read CSS variables.
+        toDataURL(url, { errorCorrectionLevel: 'M', margin: 2, width: 640, color: { dark: '#0d1b3e', light: '#ffffff' } }),
       )
       .then(
         (dataUrl) => live && setSrc(dataUrl),
@@ -24,10 +25,10 @@ export function JoinQrCode({ url, sizeClass = 'max-w-72 sm:max-w-80' }: { url: s
     };
   }, [url]);
 
-  if (failed) return <p className="text-sm text-slate-600">Couldn’t draw the QR code. Students can use the link below.</p>;
+  if (failed) return <p className="text-small text-card-ink-muted">Couldn’t draw the QR code. Students can use the link below.</p>;
   return (
     <div className={`mx-auto aspect-square w-full ${sizeClass}`}>
-      {src && <img src={src} alt={`QR code for ${url}`} className="size-full rounded-lg [image-rendering:pixelated]" />}
+      {src && <img src={src} alt={`QR code for ${url}`} className="size-full rounded-chip [image-rendering:pixelated]" />}
     </div>
   );
 }

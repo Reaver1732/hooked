@@ -1,0 +1,254 @@
+/* Hooked components, built only from the tokens in tokens.css. */
+
+@layer base {
+  body {
+    background: var(--hk-canvas);
+    color: var(--hk-ink);
+    font-family: var(--hk-font-body);
+    font-size: var(--hk-text-body);
+    line-height: var(--hk-text-body-lh);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Safety net: with reduced motion, nothing animates or transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0s !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Components sit in Tailwind's components layer so utility classes can still adjust them. */
+@layer components {
+  /* A white card on the canvas. Focus rings and link lines inside it switch to card colors. */
+  .hk-card {
+    --hk-focus: var(--hk-focus-on-surface);
+    --hk-link-line: var(--hk-link-line-on-surface);
+    border-radius: var(--hk-radius-card);
+    background: var(--hk-surface);
+    color: var(--hk-card-ink);
+    box-shadow: var(--hk-shadow-card);
+  }
+
+  .hk-display {
+    font-family: var(--hk-font-display);
+    font-weight: var(--hk-display-weight);
+    letter-spacing: var(--hk-display-tracking);
+  }
+
+  .hk-focus:focus-visible,
+  .hk-btn:focus-visible,
+  .hk-answer:focus-visible,
+  .hk-link:focus-visible {
+    outline: 3px solid var(--hk-focus);
+    outline-offset: 3px;
+  }
+
+  /* Buttons: secondary (default), primary, accent, danger; sizes sm, md (default), lg, xl. */
+  .hk-btn {
+    --btn-bg: var(--hk-secondary-bg);
+    --btn-hover: var(--hk-secondary-hover);
+    --btn-ink: var(--hk-secondary-ink);
+    --btn-edge: var(--hk-secondary-edge);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0 1.5rem;
+    border: 0;
+    border-radius: var(--hk-radius-control);
+    background: var(--btn-bg);
+    color: var(--btn-ink);
+    font-family: var(--hk-font-display);
+    font-size: var(--hk-text-body);
+    font-weight: var(--hk-display-weight);
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    box-shadow: 0 var(--hk-control-lift) 0 var(--btn-edge);
+    cursor: pointer;
+    user-select: none;
+  }
+  .hk-btn:hover {
+    background: var(--btn-hover);
+  }
+  .hk-btn:active:not(:disabled) {
+    transform: translateY(var(--hk-control-press));
+    box-shadow: 0 calc(var(--hk-control-lift) - var(--hk-control-press)) 0 var(--btn-edge);
+  }
+  .hk-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .hk-btn:disabled:hover {
+    background: var(--btn-bg);
+  }
+  .hk-btn--primary {
+    --btn-bg: var(--hk-primary);
+    --btn-hover: var(--hk-primary-hover);
+    --btn-ink: var(--hk-on-primary);
+    --btn-edge: var(--hk-primary-edge);
+  }
+  .hk-btn--accent {
+    --btn-bg: var(--hk-accent);
+    --btn-hover: var(--hk-accent-hover);
+    --btn-ink: var(--hk-on-accent);
+    --btn-edge: var(--hk-accent-edge);
+  }
+  .hk-btn--danger {
+    --btn-bg: var(--hk-bad);
+    --btn-hover: var(--hk-bad-hover);
+    --btn-ink: var(--hk-on-bad);
+    --btn-edge: var(--hk-bad-edge);
+  }
+  .hk-btn--sm {
+    min-height: 2.5rem;
+    padding: 0 1rem;
+    font-size: var(--hk-text-small);
+  }
+  .hk-btn--lg {
+    min-height: 3.5rem;
+    padding: 0 2rem;
+    font-size: var(--hk-text-heading);
+  }
+  .hk-btn--xl {
+    min-height: 4rem;
+    padding: 0 2.75rem;
+    font-size: var(--hk-text-title);
+  }
+
+  /* The Phish and Legit buttons: data-variant="phish|legit", data-state="idle|chosen|faded". */
+  .hk-answer {
+    --ans-bg: var(--hk-bad);
+    --ans-hover: var(--hk-bad-hover);
+    --ans-ink: var(--hk-on-bad);
+    --ans-edge: var(--hk-bad-edge);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 5.5rem;
+    padding: 0.75rem;
+    border: 0;
+    border-radius: var(--hk-radius-control);
+    background: var(--ans-bg);
+    color: var(--ans-ink);
+    font-family: var(--hk-font-display);
+    font-size: var(--hk-text-title);
+    font-weight: var(--hk-display-weight);
+    line-height: 1;
+    box-shadow: 0 var(--hk-control-lift) 0 var(--ans-edge);
+    cursor: pointer;
+  }
+  .hk-answer[data-variant="legit"] {
+    --ans-bg: var(--hk-good);
+    --ans-hover: var(--hk-good-hover);
+    --ans-ink: var(--hk-on-good);
+    --ans-edge: var(--hk-good-edge);
+  }
+  .hk-answer[data-state="idle"]:hover {
+    background: var(--ans-hover);
+  }
+  .hk-answer[data-state="idle"]:active,
+  .hk-answer[data-state="chosen"] {
+    transform: translateY(var(--hk-control-press));
+    box-shadow: 0 calc(var(--hk-control-lift) - var(--hk-control-press)) 0 var(--ans-edge);
+  }
+  .hk-answer[data-state="chosen"] {
+    cursor: default;
+  }
+  /* The option not picked. It's disabled, so it's exempt from contrast minimums. */
+  .hk-answer[data-state="faded"] {
+    opacity: 0.4;
+    cursor: default;
+    box-shadow: none;
+    transform: translateY(var(--hk-control-lift));
+  }
+
+  /* Text fields, always on a card. */
+  .hk-input {
+    min-height: 3rem;
+    width: 100%;
+    min-width: 0;
+    padding: 0 0.75rem;
+    border: 2px solid var(--hk-input-border);
+    border-radius: var(--hk-radius-chip);
+    background: var(--hk-surface);
+    color: var(--hk-card-ink);
+    font: inherit;
+  }
+  .hk-input:focus-visible {
+    outline: 3px solid var(--hk-focus-on-surface);
+    outline-offset: 2px;
+  }
+
+  /* A button or link that reads as text. Color comes from where it sits. */
+  .hk-link {
+    border-radius: var(--hk-radius-tight);
+    color: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: var(--hk-link-line);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+    cursor: pointer;
+  }
+
+  .hk-key {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.6em;
+    padding: 0 0.35em;
+    border-radius: var(--hk-radius-tight);
+    background: var(--hk-raised);
+    color: var(--hk-ink);
+    box-shadow: var(--hk-shadow-key);
+    font-family: var(--hk-font-body);
+    font-size: var(--hk-text-micro);
+    font-weight: 800;
+    line-height: 1.6;
+  }
+
+  /* Motion: only when the reader hasn't asked for less. */
+  @media (prefers-reduced-motion: no-preference) {
+    .hk-btn,
+    .hk-answer {
+      transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color 120ms ease-out;
+    }
+    .hk-fill {
+      transition: width 400ms cubic-bezier(0.2, 0.8, 0.2, 1.2);
+    }
+
+    @keyframes hk-pop {
+      0% { transform: scale(0.85); opacity: 0; }
+      60% { transform: scale(1.04); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    @keyframes hk-rise {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes hk-bob {
+      0%, 100% { transform: translateY(0) rotate(-8deg); }
+      50% { transform: translateY(6px) rotate(-4deg); }
+    }
+    @keyframes hk-float {
+      from { transform: translateY(0); }
+      to { transform: translateY(-24px); }
+    }
+
+    .hk-reveal-pop { animation: hk-pop 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+    .hk-reveal-rise { animation: hk-rise 420ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+    .hk-marks mark { animation: hk-pop 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+    .hk-bob { animation: hk-bob 3.2s ease-in-out infinite; }
+    .hk-bubble { animation: hk-float 4s ease-in-out infinite alternate; }
+  }
+}
