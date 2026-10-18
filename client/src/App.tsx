@@ -267,9 +267,15 @@ export default function App() {
     onQuickStart: session ? undefined : playQuick,
     onJoinClass: () => setScreen({ name: 'join' }),
     onLeaveClass: () => {
-      // Forget the player too, so the next person on a shared browser isn't offered
-      // "Continue as" this student. Coming back on this device needs the rejoin code.
-      if (session) forgetPlayer(session.code);
+      if (!session) return;
+      // Leaving forgets the player too, so the next person on a shared browser isn't offered
+      // "Continue as" this student. That makes the rejoin code the only way back, so ask first.
+      const codeNote = rejoinCode ? ` Your rejoin code is ${rejoinCode}.` : '';
+      const leave = window.confirm(
+        `Leave class ${session.code}? To come back as ${session.nickname}, you’ll need your rejoin code.${codeNote}`,
+      );
+      if (!leave) return;
+      forgetPlayer(session.code);
       setSession(null);
       setNotice(null);
       setRejoinCode(null);
