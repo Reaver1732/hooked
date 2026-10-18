@@ -15,11 +15,15 @@ export type PlayStateOptions = {
  * Everything the play screen does (state, keyboard shortcuts, focus moves), separate from
  * how it looks, so every visual design shares exactly the same behavior.
  */
+// The play screen's two-column breakpoint (Tailwind's lg, as used in PlayScreen).
+const TWO_COLUMNS = '(min-width: 64rem)';
+
 export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: PlayStateOptions) {
   const [index, setIndex] = useState(initialAnswers.length);
   const [answers, setAnswers] = useState<Answer[]>(initialAnswers);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
+  const verdictRef = useRef<HTMLDivElement>(null);
   // Guards against two answers for one message (e.g. P then L before a re-render).
   const lastAnsweredRef = useRef(initialAnswers.length - 1);
 
@@ -50,9 +54,13 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
     headingRef.current?.focus({ preventScroll: true });
   }, [index]);
 
-  // Answered: the answer buttons are now disabled, so hand focus to Next.
+  // Answered. In the one-column layout (phones, small tablets) the verdict lands below the screen,
+  // so bring it to the top: instantly, which also respects reduced motion. Then hand focus to Next
+  // (the answer buttons are now disabled) without scrolling away from the verdict.
   useEffect(() => {
-    if (answered) nextRef.current?.focus({ preventScroll: true });
+    if (!answered) return;
+    if (!window.matchMedia(TWO_COLUMNS).matches) verdictRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    nextRef.current?.focus({ preventScroll: true });
   }, [answered]);
 
   useEffect(() => {
@@ -76,7 +84,7 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
 
   const verdict = answer && verdictFor(isCorrect(answer), message.isPhish);
 
-  return { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdict };
+  return { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdictRef, verdict };
 }
 
 export function verdictFor(correct: boolean, isPhish: boolean) {

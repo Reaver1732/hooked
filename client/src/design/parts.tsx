@@ -145,9 +145,15 @@ export function AnswerButtons({ answer, onChoose }: { answer: Answer | undefined
   );
 }
 
-export function Verdict({ verdict }: { verdict: ReturnType<typeof verdictFor> | undefined }) {
+export function Verdict({
+  verdict,
+  boxRef,
+}: {
+  verdict: ReturnType<typeof verdictFor> | undefined;
+  boxRef?: Ref<HTMLDivElement>;
+}) {
   return (
-    <div aria-live="polite" aria-atomic="true">
+    <div ref={boxRef} aria-live="polite" aria-atomic="true" className="scroll-mt-4">
       {verdict && (
         <p
           className={`hk-reveal-pop flex items-start gap-3 rounded-card px-5 py-4 ${verdict.correct ? 'bg-good text-on-good' : 'bg-bad text-on-bad'}`}

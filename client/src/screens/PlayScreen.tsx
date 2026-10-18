@@ -6,7 +6,7 @@ import { usePlayState, type PlayStateOptions } from '../game/usePlayState.ts';
 
 export function PlayScreen(props: PlayStateOptions) {
   const { deck } = props;
-  const { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdict } = usePlayState(props);
+  const { index, answers, message, answer, answered, isLast, choose, next, headingRef, nextRef, verdictRef, verdict } = usePlayState(props);
   const correctSoFar = answers.filter(isCorrect).length;
   // The situation line is drawn here, so the message card renders without it.
   const card = useMemo(() => ({ ...message, context: undefined }), [message]);
@@ -45,7 +45,7 @@ export function PlayScreen(props: PlayStateOptions) {
       <div className="flex flex-col gap-5">
         <AnswerButtons answer={answer} onChoose={choose} />
         <KeysHint />
-        <Verdict verdict={verdict} />
+        <Verdict verdict={verdict} boxRef={verdictRef} />
         {answered && (
           <>
             <Notes message={message} />
