@@ -484,7 +484,8 @@ export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
                   {summary.players.map((p) => (
                     <li key={p.id} className="flex flex-col gap-2 py-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 text-heading font-bold wrap-break-word">{p.nickname}</span>
+                        {/* Clipped, so a name joined with stacks of accent marks can't spill over other rows. */}
+                        <span className="-my-1.5 min-w-0 overflow-hidden py-1.5 text-heading font-bold wrap-break-word">{p.nickname}</span>
                         <span
                           className={`rounded-full px-3 py-0.5 text-micro font-bold ${p.passed ? 'bg-good text-on-good' : 'bg-surface-muted text-card-ink'}`}
                         >

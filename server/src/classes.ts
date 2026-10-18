@@ -71,9 +71,13 @@ const EMOJI_SEQUENCE =
   /[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*/gu;
 const INVISIBLE = /[\p{Cf}\p{Co}\p{Default_Ignorable_Code_Point}]/u;
 const VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
+// "Zalgo" text stacks dozens of combining marks on a letter and spills over neighbouring rows.
+// Real names need at most a few per letter (Vietnamese and Thai stack two or three).
+const STACKED_MARKS = /\p{M}{4,}/u;
 
 const newNicknameSchema = nicknameSchema
   .refine((s) => !INVISIBLE.test(s.replace(EMOJI_SEQUENCE, 'x')), 'Nickname contains characters that aren’t allowed')
+  .refine((s) => !STACKED_MARKS.test(s), 'Nickname has too many accent marks on one letter')
   .refine((s) => VISIBLE.test(s.replaceAll('\u2800', '')), 'Nickname needs at least one letter or number');
 
 // Strict objects reject unknown keys: students only ever send a nickname, a rejoin code,
