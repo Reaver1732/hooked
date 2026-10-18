@@ -104,13 +104,13 @@ export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
       <Section id="data-heading" icon={<LockIcon className="size-6" />} tone="mark" title="What’s stored, and for how long">
         <ul className="mt-5 flex list-disc flex-col gap-2 pl-5 text-small text-card-ink-muted marker:text-card-ink">
           <li>
-            <strong className="text-card-ink">For each student:</strong> the nickname they type, a scrambled (hashed) copy of
-            their rejoin code, and their answers in each attempt (which message, phish or legit, and whether it was right).
-            Hooked doesn’t ask for names, emails, or accounts.
+            <strong className="text-card-ink">For each student:</strong> the nickname they type, when they joined, a scrambled
+            (hashed) copy of their rejoin code, and their answers in each attempt (which message, phish or legit, whether it
+            was right, and when). Hooked doesn’t ask for names, emails, or accounts.
           </li>
           <li>
-            <strong className="text-card-ink">For the class:</strong> a 6-character code and a scrambled (hashed) copy of
-            your dashboard key.
+            <strong className="text-card-ink">For the class:</strong> a 6-character code, a scrambled (hashed) copy of your
+            dashboard key, the passing score you set, and when the class was created and last used.
           </li>
           <li>
             <strong className="text-card-ink">How long:</strong> until you delete the class, or {CLASS_IDLE_DAYS} days after
@@ -127,11 +127,14 @@ export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
           </li>
           <li>
             <strong className="text-card-ink">Password check:</strong> passwords are never stored or sent. Only the first 5
-            characters of the password’s hash leave the device, to look it up in Have I Been Pwned.
+            characters of the password’s hash leave the device, to look it up in Have I Been Pwned. The student’s browser
+            contacts Have I Been Pwned (served through Cloudflare) directly, and only when they press Check, so that service
+            sees the device’s IP address, as any website does. Hooked’s server isn’t involved.
           </li>
           <li>
-            Like any website, the hosting provider keeps standard request logs, which include IP addresses. Hooked itself
-            doesn’t store or log them.
+            Like any website, the hosting provider keeps standard request logs, which include IP addresses. Hooked’s own logs
+            don’t record them and its database never saves them. To slow down abuse, the server briefly keeps a count of
+            requests per address in memory; it’s never written to disk and is gone within about two hours.
           </li>
         </ul>
       </Section>
@@ -145,9 +148,8 @@ export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
       </Section>
 
       <p className="rounded-card bg-raised px-5 py-4 text-small text-ink-muted">
-        <strong className="text-ink">Everything in the game is made up.</strong> All senders, companies, games, and services
-        are fictional, and any resemblance to real ones is unintended. Links in the messages never open anything; they only
-        show where they would lead.
+        <strong className="text-ink">All people, companies, and schools in the game are made up.</strong> Links in the
+        game never open.
       </p>
     </section>
   );
