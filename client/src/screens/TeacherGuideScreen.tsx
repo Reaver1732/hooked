@@ -40,6 +40,7 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
         student refreshes the page, they stay in the class. If they close the tab, the join link picks up where they left
         off; on another device they use the rejoin code they were shown when they joined (you can reset it from the
         dashboard; the new code stays hidden until you press <strong>Show code</strong>, so it’s safe while projecting).
+        Latecomers can still join: press <strong>Show QR code</strong> on the dashboard.
       </>
     ),
   },
@@ -48,8 +49,9 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     title: 'Review the dashboard together',
     body: (
       <>
-        Use <strong>Show QR code</strong> for latecomers. Then project the <strong>Most-missed red flags</strong> and{' '}
-        <strong>Per message</strong> sections and talk through the messages your class found hardest. Both use each
+        Once everyone has finished (the <strong>Per message</strong> section shows which messages are phish, so it’s an
+        answer key), project the <strong>Most-missed red flags</strong> and <strong>Per message</strong> sections and
+        talk through the messages your class found hardest. Both use each
         student’s first run, so replays don’t hide what fooled people. Set a passing score if you like (80% by default,
         checked against each student’s best run) and use <strong>Export CSV</strong> to keep a record. Once the dashboard is open, the address bar shows only the class code, not your
         private key, so it’s fine on a projector. Scroll past the player list if you’d rather not show individual
