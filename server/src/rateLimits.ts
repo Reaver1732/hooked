@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import { rateLimit, type AugmentedRequest, type Options } from 'express-rate-limit';
+import { CLASS_CODE_ALPHABET, CLASS_CODE_LENGTH, NICKNAME_MAX } from '../../shared/api.ts';
 
 const MINUTE = 60 * 1000;
 
@@ -11,6 +12,8 @@ type LimiterOptions = {
   tooMany: string;
   /** Defaults to the client IP (req.ip, correct because index.ts trusts Railway's proxies). */
   keyGenerator?: Options['keyGenerator'];
+  /** Requests to leave out entirely: not counted and given no key in the store. */
+  skip?: Options['skip'];
   /**
    * Count only requests the client got wrong (4xx), e.g. wrong rejoin codes. Server errors
    * (5xx, like a database outage) don't count, so an outage can't lock anyone out afterwards.
@@ -23,7 +26,7 @@ type LimiterOptions = {
 };
 
 /** In-memory limiter, so counts are per server instance. */
-function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = false, countOnly, successesOnly = false }: LimiterOptions) {
+function limiter({ name, windowMs, limit, tooMany, keyGenerator, skip, failuresOnly = false, countOnly, successesOnly = false }: LimiterOptions) {
   return rateLimit({
     windowMs,
     limit,
@@ -37,6 +40,7 @@ function limiter({ name, windowMs, limit, tooMany, keyGenerator, failuresOnly = 
         countOnly ? !countOnly.includes(res.statusCode) : res.statusCode < 400 || res.statusCode >= 500,
     }),
     ...(keyGenerator && { keyGenerator }),
+    ...(skip && { skip }),
     handler: (req, res, _next, options) => {
       const resetTime = (req as AugmentedRequest).rateLimit?.resetTime;
       const minutes = resetTime ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / MINUTE)) : null;
@@ -93,6 +97,21 @@ export const answerLimit = limiter({
 export const rejoinKey = (code: string, nickname: string) =>
   `${code.trim().toUpperCase()}:${nickname.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase()}`;
 
+const CLASS_CODE_SHAPE = new RegExp(`^[${CLASS_CODE_ALPHABET}]{${CLASS_CODE_LENGTH}}$`);
+
+/**
+ * The rejoin limiter's key for a request, or null when the request is malformed. Those get a
+ * 400 that never counts anyway, and leaving them out keeps attacker-sized strings (a URL path
+ * can be about 16 KB) out of the in-memory store.
+ */
+export function rejoinRequestKey(code: unknown, nickname: unknown): string | null {
+  if (typeof code !== 'string' || typeof nickname !== 'string') return null;
+  if (!CLASS_CODE_SHAPE.test(code.trim().toUpperCase())) return null;
+  const key = rejoinKey(code, nickname);
+  const normalizedNickname = key.slice(key.indexOf(':') + 1);
+  return normalizedNickname && [...normalizedNickname].length <= NICKNAME_MAX ? key : null;
+}
+
 // Rejoin codes are 6 characters, so guessing is limited twice: per student (class code and
 // nickname, from any number of IPs) and per IP (across classes). Only wrong guesses (401) and
 // unknown classes (404) count: not correct rejoins, malformed requests, or the 429s themselves.
@@ -104,8 +123,8 @@ export const rejoinClassLimit = limiter({
   windowMs: 10 * MINUTE,
   limit: 10,
   tooMany: 'Too many wrong codes for this nickname. Ask your teacher for a new code, or try again later.',
-  keyGenerator: (req) =>
-    rejoinKey(String(req.params.code ?? ''), typeof req.body?.nickname === 'string' ? req.body.nickname : ''),
+  keyGenerator: (req) => rejoinRequestKey(req.params.code, req.body?.nickname) ?? '',
+  skip: (req) => rejoinRequestKey(req.params.code, req.body?.nickname) === null,
   failuresOnly: true,
   countOnly: [401, 404],
 });
