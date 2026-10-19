@@ -1,5 +1,5 @@
 import { idleCutoff } from './classes.ts';
-import { getPrisma } from './db.ts';
+import { databaseDownReason, getPrisma } from './db.ts';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -12,7 +12,9 @@ export function startClassCleanup(): void {
       const { count } = await prisma.class.deleteMany({ where: { lastActivityAt: { lt: idleCutoff() } } });
       if (count) console.log(`class cleanup: deleted ${count} idle class${count === 1 ? '' : 'es'}`);
     } catch (err) {
-      console.error('class cleanup failed', err);
+      const down = databaseDownReason(err);
+      if (down) console.error(`class cleanup skipped: database unavailable (${down})`);
+      else console.error('class cleanup failed', err);
     }
   };
   void run();

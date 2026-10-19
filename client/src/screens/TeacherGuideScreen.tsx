@@ -14,7 +14,8 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         On the start screen choose <strong>I’m a teacher</strong>, then <strong>Create a class</strong>. Open the
-        dashboard link in a tab only you can see, and save it somewhere safe: it can’t be recovered.
+        dashboard link in a tab only you can see, and save it somewhere safe: it can’t be recovered. If it leaks, use{' '}
+        <strong>Get a new link</strong> on the dashboard; the old one stops working and your results stay.
       </>
     ),
   },
@@ -38,7 +39,8 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
         shows each student’s first score (before they’d seen any answers) and their best; Passed uses the best. If a
         student refreshes the page, they stay in the class. If they close the tab, the join link picks up where they left
         off; on another device they use the rejoin code they were shown when they joined (you can reset it from the
-        dashboard).
+        dashboard; the new code stays hidden until you press <strong>Show code</strong>, so it’s safe while projecting).
+        Latecomers can still join: press <strong>Show QR code</strong> on the dashboard.
       </>
     ),
   },
@@ -47,12 +49,13 @@ const PLAN: { minutes: string; title: string; body: ReactNode }[] = [
     title: 'Review the dashboard together',
     body: (
       <>
-        Use <strong>Show QR code</strong> for latecomers. Then project the <strong>Most-missed red flags</strong> and{' '}
-        <strong>Per message</strong> sections and talk through the messages your class found hardest. Both use each
+        Once everyone has finished (the <strong>Per message</strong> section shows which messages are phish, so it’s an
+        answer key), project the <strong>Most-missed red flags</strong> and <strong>Per message</strong> sections and
+        talk through the messages your class found hardest. Both use each
         student’s first run, so replays don’t hide what fooled people. Set a passing score if you like (80% by default,
-        checked against each student’s best run) and use <strong>Export CSV</strong> to keep a record. Before projecting, switch to full screen (F11, or the full-screen key on
-        a Chromebook) so the private dashboard link in the address bar isn’t shown, and scroll past the player list if
-        you’d rather not show individual scores.
+        checked against each student’s best run) and use <strong>Export CSV</strong> to keep a record. Once the dashboard is open, the address bar shows only the class code, not your
+        private key, so it’s fine on a projector. Scroll past the player list if you’d rather not show individual
+        scores.
       </>
     ),
   },
@@ -126,7 +129,8 @@ export function TeacherGuideScreen({ onBack }: { onBack: () => void }) {
           <li>
             <strong className="text-card-ink">On this device:</strong> the browser remembers classes you created here
             (including the dashboard key) and which player a student is in each class, so both can pick up where they left
-            off. On a shared computer, delete the class when you’re done or use a private window.
+            off. On a shared computer, press <strong className="text-card-ink">Forget</strong> next to the class on the start
+            screen when you’re done (the class and its results stay), delete the class, or use a private window.
           </li>
           <li>
             <strong className="text-card-ink">Password check:</strong> passwords are never stored or sent. Only the first 5

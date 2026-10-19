@@ -13,6 +13,7 @@ import {
   type CreateClassResponse,
   type JoinClassResponse,
   type KeepClassResponse,
+  type NewTeacherKeyResponse,
   type PlayerProgress,
   type RejoinResponse,
   type ResetRejoinCodeResponse,
@@ -21,8 +22,20 @@ import {
 } from '../../shared/api.ts';
 import { mostMissedFlags } from '../../shared/flags.ts';
 import { messages, type Message } from '../../shared/messages.ts';
-import { getPrisma } from './db.ts';
-import { answerLimit, createClassLimit, joinClassLimit, playerLimit, rejoinClassLimit, rejoinIpLimit } from './rateLimits.ts';
+import { databaseDownReason, getPrisma } from './db.ts';
+import {
+  answerLimit,
+  classStatusLimit,
+  createClassLimit,
+  joinClassLimit,
+  playerLimit,
+  rejoinClassLimit,
+  rejoinIpLimit,
+  rejoinKey,
+  summaryLimit,
+  teacherKeyFailures,
+  unknownPlayerLimit,
+} from './rateLimits.ts';
 import { Prisma, type PrismaClient } from './generated/prisma/client.ts';
 
 const messagesById = new Map(messages.map((m) => [m.id, m]));
@@ -49,9 +62,39 @@ const nicknameSchema = z
   .refine((s) => [...s].length <= NICKNAME_MAX, `Nickname must be ${NICKNAME_MAX} characters or fewer`)
   .refine((s) => !HIDDEN_CHARS.test(s), 'Nickname contains characters that aren’t allowed');
 
+// New names are held to a stricter rule than rejoins, so a student who joined under the old
+// rule can still get back in. No invisible characters at all (format, private-use and
+// default-ignorable code points such as U+2060, soft hyphen and Hangul fillers), except the
+// joiners and variation selectors inside emoji like 👩‍💻 and ❤️. And at least one visible
+// character: the braille blank U+2800 is a "symbol" that draws nothing.
+const EMOJI_SEQUENCE =
+  /[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*/gu;
+const INVISIBLE = /[\p{Cf}\p{Co}\p{Default_Ignorable_Code_Point}]/u;
+const VISIBLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
+// "Zalgo" text stacks dozens of combining marks on a letter and spills over neighbouring rows.
+// Real names need at most a few per letter (Vietnamese and Thai stack two or three).
+const STACKED_MARKS = /\p{M}{4,}/u;
+
+// Look-alikes: NFKC folds compatibility forms (fullwidth "ＡＢＣ" becomes "ABC") so the duplicate
+// check sees them, and a name can't mix Latin with Cyrillic or Greek letters, where "а" and "a"
+// look the same. A whole name in one of those alphabets is fine.
+const LATIN = /\p{Script=Latin}/u;
+const CYRILLIC = /\p{Script=Cyrillic}/u;
+const GREEK = /\p{Script=Greek}/u;
+const mixesLookalikeScripts = (s: string) =>
+  [LATIN, CYRILLIC, GREEK].filter((script) => script.test(s)).length > 1;
+
+const newNicknameSchema = nicknameSchema
+  .transform((s) => s.normalize('NFKC').trim().replace(/\s+/g, ' '))
+  .refine((s) => s.length > 0 && [...s].length <= NICKNAME_MAX, `Nickname must be 1 to ${NICKNAME_MAX} characters`)
+  .refine((s) => !mixesLookalikeScripts(s), 'Use one alphabet in a nickname, so it can’t pass for someone else’s')
+  .refine((s) => !INVISIBLE.test(s.replace(EMOJI_SEQUENCE, 'x')), 'Nickname contains characters that aren’t allowed')
+  .refine((s) => !STACKED_MARKS.test(s), 'Nickname has too many accent marks on one letter')
+  .refine((s) => VISIBLE.test(s.replaceAll('\u2800', '')), 'Nickname needs at least one letter or number');
+
 // Strict objects reject unknown keys: students only ever send a nickname, a rejoin code,
 // or an answer; teachers only a target score.
-const joinBody = z.strictObject({ nickname: nicknameSchema });
+const joinBody = z.strictObject({ nickname: newNicknameSchema });
 const rejoinBody = z.strictObject({ nickname: nicknameSchema, rejoinCode: rejoinCodeSchema });
 const answerBody = z.strictObject({
   playerId: z.uuid(),
@@ -87,6 +130,10 @@ function db(): PrismaClient {
 const isUniqueViolation = (err: unknown) =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 
+/** A row this write points at was deleted meanwhile (a foreign key, or a missing record). */
+const isGoneRow = (err: unknown) =>
+  err instanceof Prisma.PrismaClientKnownRequestError && (err.code === 'P2003' || err.code === 'P2025');
+
 // ---- Secrets ----------------------------------------------------------------------
 
 function newCode(length: number): string {
@@ -106,12 +153,18 @@ function hashesEqual(a: string, b: string): boolean {
 /** Loads the class for :code and checks the X-Teacher-Key header against its stored hash. */
 async function requireTeacher(req: Request) {
   const code = parse(codeSchema, req.params.code);
+  // Too many failures from one IP: answer 429 for every failure from then on, so the
+  // difference between "wrong key" (401) and "no such class" (404) stops leaking.
+  const fail = (status: number, message: string) =>
+    teacherKeyFailures.hit(req.ip ?? '')
+      ? new HttpError(429, 'Too many failed dashboard requests from your network. Try again later.')
+      : new HttpError(status, message);
   const key = teacherKeySchema.safeParse(req.get('X-Teacher-Key'));
-  if (!key.success) throw new HttpError(401, 'Missing or invalid teacher key');
+  if (!key.success) throw fail(401, 'Missing or invalid teacher key');
 
   const cls = await findActiveClass(code);
-  if (!cls) throw new HttpError(404, 'This class was closed or has expired.');
-  if (!hashesEqual(hashKey(key.data), cls.teacherKeyHash)) throw new HttpError(401, 'Missing or invalid teacher key');
+  if (!cls) throw fail(404, 'This class was closed or has expired.');
+  if (!hashesEqual(hashKey(key.data), cls.teacherKeyHash)) throw fail(401, 'Missing or invalid teacher key');
   return cls;
 }
 
@@ -142,10 +195,11 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
   const cls = await findActiveClass(code);
   if (!cls) throw new HttpError(404, 'No class with that code');
 
-  const taken = await db().player.findFirst({
-    where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
-  });
-  if (taken) throw new HttpError(409, 'That nickname is taken. If it’s you, use your rejoin code below. If not, pick another nickname.');
+  // Exact, case-insensitive comparison. (Prisma's insensitive `equals` becomes an unescaped
+  // ILIKE, where _ % and \ in a nickname would act as wildcards.)
+  const taken = await db().$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Player" WHERE "classId" = ${cls.id} AND lower(nickname) = lower(${nickname}) LIMIT 1`;
+  if (taken.length) throw new HttpError(409, 'That nickname is taken. If it’s you, use your rejoin code below. If not, pick another nickname.');
 
   // Take a seat and add the player in one statement. Concurrent joins queue on the
   // Class row lock and re-check "playerCount" < cap against the latest value, so the
@@ -162,6 +216,8 @@ classesRouter.post('/classes/:code/join', joinClassLimit, async (req, res) => {
     SELECT ${playerId}, seat.id, ${nickname}, ${hashRejoinCode(playerId, rejoinCode)} FROM seat
     RETURNING id`;
   if (inserted.length === 0) {
+    // No seat: either the class is full, or it was deleted while this request was on its way.
+    if (!(await findActiveClass(code))) throw new HttpError(404, 'This class was closed.');
     throw new HttpError(409, `This class is full (${MAX_PLAYERS_PER_CLASS} players). Ask your teacher to start another class.`);
   }
   // The rejoin code is shown to the student once, here; only its hash is kept.
@@ -174,13 +230,19 @@ classesRouter.post('/classes/:code/rejoin', rejoinIpLimit, rejoinClassLimit, asy
   const { nickname, rejoinCode } = parse(rejoinBody, req.body);
   const cls = await findActiveClass(code);
   if (!cls) throw new HttpError(404, 'No class with that code');
-  const player = await db().player.findFirst({
-    where: { classId: cls.id, nickname: { equals: nickname, mode: 'insensitive' } },
-  });
+  // Exact, case-insensitive match (see join), as typed or folded like new names are (NFKC), so
+  // "ｋｉｍ" typed on another device finds "kim". If two players ever share a name, the one
+  // whose code matches is the one rejoining.
+  const candidates = await db().$queryRaw<{ id: string; nickname: string; rejoinCodeHash: string | null }[]>`
+    SELECT id, nickname, "rejoinCodeHash" FROM "Player"
+    WHERE "classId" = ${cls.id} AND lower(nickname) IN (lower(${nickname}), lower(${nickname.normalize('NFKC')}))`;
+  const player = candidates.find(
+    (p) => p.rejoinCodeHash && hashesEqual(hashRejoinCode(p.id, rejoinCode), p.rejoinCodeHash),
+  );
   // Same answer for an unknown nickname and a wrong code, so a failed rejoin doesn't say which
   // was wrong. Nicknames aren't secret (join reports taken ones and the dashboard lists them);
   // the rejoin code and its guess limits are the protection.
-  if (!player?.rejoinCodeHash || !hashesEqual(hashRejoinCode(player.id, rejoinCode), player.rejoinCodeHash)) {
+  if (!player) {
     throw new HttpError(401, 'That nickname and rejoin code don’t match. Check both, or ask your teacher for a new code.');
   }
   await touchClass(cls.id, { throttleMs: 60_000 });
@@ -194,29 +256,49 @@ const toProgress = (a: { id: string; answers: { messageId: string; choice: 'phis
   answers: a.answers.map(({ messageId, choice }) => ({ messageId, choice })),
 });
 
-/** A player's own progress. Knowing the (random) player id is what scopes it. */
-classesRouter.get('/players/:playerId', playerLimit, async (req, res) => {
+const PLAYER_NOT_FOUND = 'Player not found. You may have been removed, or the class was closed.';
+
+/**
+ * Checks the player exists in an active class before the per-player limit counts the request.
+ * Unknown ids only go through unknownPlayerLimit, so they can't use up anyone's budget.
+ */
+async function loadPlayer(req: Request, res: Response, next: NextFunction) {
   const playerId = parse(z.uuid(), req.params.playerId);
+  const found = await db().player.findFirst({
+    where: { id: playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
+    select: { id: true },
+  });
+  if (!found) return unknownPlayerLimit(req, res, () => next(new HttpError(404, PLAYER_NOT_FOUND)));
+  res.locals.playerId = found.id;
+  next();
+}
+
+/** A player's own progress. Knowing the (random) player id is what scopes it. */
+classesRouter.get('/players/:playerId', loadPlayer, playerLimit, async (req, res) => {
+  const playerId = parse(z.uuid(), req.params.playerId);
+  // Only the open attempt's answers and a count of finished ones: a player who replays a lot
+  // shouldn't make this load every answer they've ever given.
   const player = await db().player.findFirst({
     where: { id: playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
     include: {
       class: { select: { code: true } },
-      attempts: { orderBy: { startedAt: 'desc' }, include: { answers: attemptAnswers } },
+      attempts: { where: { finishedAt: null }, orderBy: { startedAt: 'desc' }, take: 1, include: { answers: attemptAnswers } },
+      _count: { select: { attempts: { where: { finishedAt: { not: null } } } } },
     },
   });
-  if (!player) throw new HttpError(404, 'Player not found. You may have been removed, or the class was closed.');
-  const current = player.attempts.find((a) => !a.finishedAt);
+  if (!player) throw new HttpError(404, PLAYER_NOT_FOUND);
+  const current = player.attempts[0];
   res.set('Cache-Control', 'no-store').json({
     playerId: player.id,
     nickname: player.nickname,
     classCode: player.class.code,
     currentAttempt: current ? toProgress(current) : null,
-    finishedAttempts: player.attempts.filter((a) => a.finishedAt).length,
+    finishedAttempts: player._count.attempts,
   } satisfies PlayerProgress);
 });
 
 /** Resumes the player's unfinished attempt, or starts a new one. */
-classesRouter.post('/players/:playerId/attempts', playerLimit, async (req, res) => {
+classesRouter.post('/players/:playerId/attempts', loadPlayer, playerLimit, async (req, res) => {
   const playerId = parse(z.uuid(), req.params.playerId);
   parse(emptyBody, req.body ?? {});
   const attempt = await db().$transaction(async (tx) => {
@@ -231,9 +313,18 @@ classesRouter.post('/players/:playerId/attempts', playerLimit, async (req, res) 
       orderBy: { startedAt: 'desc' },
       include: { answers: attemptAnswers },
     });
-    return open ?? tx.attempt.create({ data: { playerId }, include: { answers: attemptAnswers } });
+    if (open) {
+      const current = new Set(MESSAGE_IDS);
+      const covered = new Set(open.answers.map((a) => a.messageId).filter((id) => current.has(id))).size;
+      if (covered < MESSAGE_IDS.length) return open;
+      // Every current message is answered but the attempt was never marked finished (the step
+      // after the last answer failed, or a content change removed the messages that were left).
+      // Finish it now, so it counts, and start a fresh one.
+      await tx.attempt.update({ where: { id: open.id }, data: { finishedAt: new Date() } });
+    }
+    return tx.attempt.create({ data: { playerId }, include: { answers: attemptAnswers } });
   });
-  if (!attempt) throw new HttpError(404, 'Player not found. You may have been removed, or the class was closed.');
+  if (!attempt) throw new HttpError(404, PLAYER_NOT_FOUND);
   res.json(toProgress(attempt) satisfies AttemptProgress);
 });
 
@@ -251,10 +342,28 @@ async function validateAnswer(req: Request, res: Response, next: NextFunction) {
     where: { id: body.playerId, class: { lastActivityAt: { gte: idleCutoff() } } },
     select: { id: true, classId: true, attempts: { where: { id: body.attemptId }, select: { finishedAt: true } } },
   });
-  if (!player) throw new HttpError(404, 'Player not found. You may have been removed from the class.');
+  if (!player) {
+    // Made-up player ids go through the same per-IP limit as unknown-player lookups (only on
+    // this failure path, so real players are never counted).
+    return unknownPlayerLimit(req, res, () =>
+      next(new HttpError(404, 'Player not found. You may have been removed from the class.')),
+    );
+  }
   const attempt = player.attempts[0];
   if (!attempt) throw new HttpError(409, 'That attempt doesn’t belong to you. Go back to the start to keep playing.');
-  if (attempt.finishedAt) throw new HttpError(409, 'That attempt is already finished. Press Play again to start a new one.');
+  if (attempt.finishedAt) {
+    // A retry of an answer that did land (often the round's last one, resent after the round
+    // ended) gets its original grading back, so the next round doesn't show a false error.
+    const existing = await db().answer.findUnique({
+      where: { attemptId_messageId: { attemptId: body.attemptId, messageId: body.messageId } },
+      select: { correct: true },
+    });
+    if (existing) {
+      res.json({ correct: existing.correct, alreadyAnswered: true, attemptFinished: true } satisfies SubmitAnswerResponse);
+      return;
+    }
+    throw new HttpError(409, 'That attempt is already finished. Press Play again to start a new one.');
+  }
   res.locals.playerId = player.id;
   res.locals.classId = player.classId;
   res.locals.answer = { ...body, message } satisfies ValidAnswer;
@@ -272,9 +381,13 @@ classesRouter.post('/answers', validateAnswer, answerLimit, async (_req, res) =>
     await db().answer.create({ data: { playerId, attemptId, messageId, choice, correct } });
     result = { correct, alreadyAnswered: false };
   } catch (err) {
+    // Removed from the class, or the class deleted, after the checks above: the same 404 as
+    // when that happened first, so the app explains it instead of showing a server error.
+    if (isGoneRow(err)) throw new HttpError(404, PLAYER_NOT_FOUND);
     if (!isUniqueViolation(err)) throw err;
     // First answer per message within an attempt counts; report how it was graded.
-    const existing = await db().answer.findUniqueOrThrow({ where: { attemptId_messageId: { attemptId, messageId } } });
+    const existing = await db().answer.findUnique({ where: { attemptId_messageId: { attemptId, messageId } } });
+    if (!existing) throw new HttpError(404, PLAYER_NOT_FOUND);
     result = { correct: existing.correct, alreadyAnswered: true };
   }
   // The attempt is finished once every message in the current set has an answer.
@@ -308,20 +421,56 @@ function bestAttempt<T extends { finishedAt: Date | null; answers: GradedAnswer[
   return best;
 }
 
-classesRouter.get('/classes/:code/summary', async (req, res) => {
-  const cls = await requireTeacher(req);
+type TeacherClass = Awaited<ReturnType<typeof requireTeacher>>;
+
+/** Checks the teacher key and puts the class on res.locals, so a limiter can run after it. */
+async function teacherAuth(req: Request, res: Response, next: NextFunction) {
+  res.locals.cls = await requireTeacher(req);
+  next();
+}
+
+/**
+ * Summaries being built right now, per class id. Concurrent requests for the same class (several
+ * dashboard tabs, or a burst) share one database read instead of each loading every answer.
+ */
+const summariesInFlight = new Map<string, Promise<ClassSummary>>();
+
+/** After a change to the class, start the next summary fresh instead of joining an older one. */
+const summaryChanged = (classId: string) => summariesInFlight.delete(classId);
+
+classesRouter.get('/classes/:code/summary', teacherAuth, summaryLimit, async (_req, res) => {
+  const cls = res.locals.cls as TeacherClass;
+  let pending = summariesInFlight.get(cls.id);
+  if (!pending) {
+    const built = buildSummary(cls).finally(() => {
+      if (summariesInFlight.get(cls.id) === built) summariesInFlight.delete(cls.id);
+    });
+    summariesInFlight.set(cls.id, built);
+    pending = built;
+  }
+  res.set('Cache-Control', 'no-store').json(await pending);
+});
+
+// An unfinished attempt counts as "playing now" for this long after its last answer (or its
+// start); after that the dashboard calls it an unfinished run, since the student likely left.
+const PLAYING_NOW_MS = 5 * 60 * 1000;
+const lastActivity = (attempt: { startedAt: Date; answers: { createdAt: Date }[] }) =>
+  Math.max(attempt.startedAt.getTime(), ...attempt.answers.map((a) => a.createdAt.getTime()));
+
+async function buildSummary(cls: TeacherClass): Promise<ClassSummary> {
   const players = await db().player.findMany({
     where: { classId: cls.id },
     orderBy: { createdAt: 'asc' },
     include: {
       attempts: {
         orderBy: { startedAt: 'asc' },
-        include: { answers: { select: { messageId: true, choice: true, correct: true } } },
+        include: { answers: { select: { messageId: true, choice: true, correct: true, createdAt: true } } },
       },
     },
   });
 
   const target = cls.targetPercent;
+  const activeSince = Date.now() - PLAYING_NOW_MS;
   const rows = players.map((p) => {
     const best = bestAttempt(p.attempts);
     // Attempts are ordered by start, so this is the first run the student finished,
@@ -336,6 +485,7 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
         nickname: p.nickname,
         attempts: p.attempts.filter((a) => a.finishedAt).length,
         inProgress: current ? current.answers.length : null,
+        inProgressActive: current ? lastActivity(current) >= activeSince : false,
         first: first ? scoreOf(first.answers) : null,
         best: best?.score ?? null,
         // Exact comparison (12/15 = 80% passes an 80% target), not the rounded percent.
@@ -378,14 +528,15 @@ classesRouter.get('/classes/:code/summary', async (req, res) => {
       };
     }),
   };
-  res.set('Cache-Control', 'no-store').json(summary);
-});
+  return summary;
+}
 
 /** Teacher: change the class's target score. */
 classesRouter.patch('/classes/:code', async (req, res) => {
   const cls = await requireTeacher(req);
   const { targetPercent } = parse(updateClassBody, req.body);
   await db().class.update({ where: { id: cls.id }, data: { targetPercent } });
+  summaryChanged(cls.id);
   res.json({ targetPercent });
 });
 
@@ -399,6 +550,9 @@ classesRouter.post('/classes/:code/players/:playerId/rejoin-code', async (req, r
     data: { rejoinCodeHash: hashRejoinCode(playerId, rejoinCode) },
   });
   if (count === 0) throw new HttpError(404, 'Player not found in this class');
+  // A fresh code should work at once, even if someone used up this student's wrong guesses.
+  const player = await db().player.findUnique({ where: { id: playerId }, select: { nickname: true } });
+  if (player) await rejoinClassLimit.resetKey(rejoinKey(cls.code, player.nickname));
   res.json({ rejoinCode } satisfies ResetRejoinCodeResponse);
 });
 
@@ -414,11 +568,12 @@ classesRouter.delete('/classes/:code/players/:playerId', async (req, res) => {
     WHERE id IN (SELECT "classId" FROM gone)
     RETURNING id`;
   if (removed.length === 0) throw new HttpError(404, 'Player not found in this class');
+  summaryChanged(cls.id);
   res.status(204).end();
 });
 
 /** Public: lets a student's app tell "class closed" apart from "you were removed". */
-classesRouter.get('/classes/:code/status', joinClassLimit, async (req, res) => {
+classesRouter.get('/classes/:code/status', classStatusLimit, async (req, res) => {
   const code = parse(codeSchema, req.params.code);
   if (!(await findActiveClass(code))) throw new HttpError(404, 'This class was closed.');
   res.set('Cache-Control', 'no-store').json({ open: true });
@@ -431,10 +586,27 @@ classesRouter.post('/classes/:code/keep', async (req, res) => {
   res.json({ expiresAt: expiresAt(updated ?? cls.lastActivityAt) } satisfies KeepClassResponse);
 });
 
+/**
+ * Teacher: replace a leaked dashboard link without losing results. The old key stops working
+ * at once, on every device. Only replaces the key just checked, so two at once can't both win.
+ */
+classesRouter.post('/classes/:code/teacher-key', async (req, res) => {
+  const cls = await requireTeacher(req);
+  parse(emptyBody, req.body ?? {});
+  const teacherKey = randomBytes(32).toString('base64url');
+  const { count } = await db().class.updateMany({
+    where: { id: cls.id, teacherKeyHash: cls.teacherKeyHash },
+    data: { teacherKeyHash: hashKey(teacherKey) },
+  });
+  if (count === 0) throw new HttpError(409, 'The dashboard link was just changed somewhere else. Use the newest link.');
+  res.json({ teacherKey } satisfies NewTeacherKeyResponse);
+});
+
 /** Teacher: delete the class; players and answers cascade. */
 classesRouter.delete('/classes/:code', async (req, res) => {
   const cls = await requireTeacher(req);
   await db().class.deleteMany({ where: { id: cls.id } });
+  summaryChanged(cls.id);
   res.status(204).end();
 });
 
@@ -475,7 +647,7 @@ function messageLabel(m: Message): string {
 // ---- Errors -----------------------------------------------------------------------
 
 /** JSON errors for /api. Client errors keep their message; anything else is a generic 500. */
-export function apiErrorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function apiErrorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
     return;
@@ -484,6 +656,16 @@ export function apiErrorHandler(err: unknown, _req: Request, res: Response, _nex
   const status = (err as { status?: unknown }).status;
   if (typeof status === 'number' && status >= 400 && status < 500) {
     res.status(status).json({ error: status === 413 ? 'Request body too large' : 'Malformed request body' });
+    return;
+  }
+  // Database unreachable: say so (solo play still works) and log one line, not a stack per request.
+  const down = databaseDownReason(err);
+  if (down) {
+    console.error(`database unavailable (${down}) on ${req.method} ${req.baseUrl}${req.route?.path ?? ''}`);
+    res
+      .status(503)
+      .set('Retry-After', '30')
+      .json({ error: 'Class mode is temporarily unavailable. Solo play still works; try again in a minute.' });
     return;
   }
   console.error(err);

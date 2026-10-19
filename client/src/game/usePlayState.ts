@@ -9,6 +9,10 @@ export type PlayStateOptions = {
   onAnswer?: (answer: Answer) => void;
   /** Answers already given to the first messages (resuming a class attempt). */
   initialAnswers?: Answer[];
+  /** Whether P and L answer (they can be turned off; Enter for Next always works). */
+  letterShortcuts?: boolean;
+  /** The class already had a different answer for this message; show that one instead. */
+  correction?: { messageId: string; guessedPhish: boolean; seq: number } | null;
 };
 
 /**
@@ -18,7 +22,7 @@ export type PlayStateOptions = {
 // The play screen's two-column breakpoint (Tailwind's lg, as used in PlayScreen).
 const TWO_COLUMNS = '(min-width: 64rem)';
 
-export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: PlayStateOptions) {
+export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [], letterShortcuts = true, correction = null }: PlayStateOptions) {
   const [index, setIndex] = useState(initialAnswers.length);
   const [answers, setAnswers] = useState<Answer[]>(initialAnswers);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -48,6 +52,13 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
     else setIndex((i) => i + 1);
   }, [isLast, onFinish, answers]);
 
+  useEffect(() => {
+    if (!correction) return;
+    setAnswers((list) =>
+      list.map((a) => (a.message.id === correction.messageId ? { ...a, guessedPhish: correction.guessedPhish } : a)),
+    );
+  }, [correction]);
+
   // New message: start at the top and put focus on the progress heading.
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -67,7 +78,7 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
     function onKeyDown(e: KeyboardEvent) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      if (!answered && (key === 'p' || key === 'l')) {
+      if (letterShortcuts && !answered && (key === 'p' || key === 'l')) {
         e.preventDefault();
         choose(key === 'p');
       } else if (answered && key === 'enter' && !e.repeat) {
@@ -79,7 +90,7 @@ export function usePlayState({ deck, onFinish, onAnswer, initialAnswers = [] }: 
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [answered, choose, next]);
+  }, [answered, choose, next, letterShortcuts]);
 
 
   const verdict = answer && verdictFor(isCorrect(answer), message.isPhish);

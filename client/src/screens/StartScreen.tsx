@@ -10,6 +10,8 @@ import { useStartScreen } from './useStartScreen.ts';
 export type StartScreenProps = {
   session: ClassSession | null;
   onStart: () => void;
+  /** A class round is being started (Start is ignored meanwhile). */
+  starting?: boolean;
   /** Starts the 5-message quick round; left out while in a class (solo only). */
   onQuickStart?: () => void;
   onJoinClass: () => void;
@@ -25,8 +27,8 @@ export type StartScreenProps = {
 
 export function StartScreen(props: StartScreenProps) {
   const { session, onStart, onQuickStart, onJoinClass, onLeaveClass, onTeacher, onTeacherGuide, onPasswordCheck } = props;
-  const { rejoinCode, onDismissRejoinCode, onOpenDashboard } = props;
-  const { joinRef, headingRef, rejoinRef, classes } = useStartScreen({ session, rejoinCode });
+  const { rejoinCode, onDismissRejoinCode, onOpenDashboard, starting = false } = props;
+  const { joinRef, headingRef, rejoinRef, classesHeadingRef, classes, forget } = useStartScreen({ session, rejoinCode });
 
   return (
     <div className="flex flex-col gap-10 sm:gap-12">
@@ -53,8 +55,8 @@ export function StartScreen(props: StartScreenProps) {
             <strong className="text-ink">red flags</strong>: the warning signs you missed.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
-            <button type="button" onClick={onStart} className={button('primary', 'xl')}>
-              Start
+            <button type="button" onClick={onStart} aria-busy={starting} className={button('primary', 'xl')}>
+              {starting ? 'Starting…' : 'Start'}
               <span aria-hidden>→</span>
             </button>
             {onQuickStart && (
@@ -102,7 +104,9 @@ export function StartScreen(props: StartScreenProps) {
         </OptionCard>
       </div>
 
-      {classes.length > 0 && <SavedClasses classes={classes} onOpen={onOpenDashboard} />}
+      {classes.length > 0 && (
+        <SavedClasses classes={classes} onOpen={onOpenDashboard} onForget={forget} headingRef={classesHeadingRef} />
+      )}
 
       <TeacherLinks onTeacher={onTeacher} onTeacherGuide={onTeacherGuide} />
     </div>

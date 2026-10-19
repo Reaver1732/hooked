@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { apiErrorHandler, classesRouter } from './classes.ts';
 import { startClassCleanup } from './cleanup.ts';
+import { databaseHealth, getPrisma } from './db.ts';
 import { loadLocalEnv } from './env.ts';
 
 loadLocalEnv();
@@ -48,8 +49,34 @@ app.use((_req, res, next) => {
 
 app.use(compression());
 
+// Always 200, so solo play and deploys never depend on the database; `db` says whether class
+// mode can reach it (ok, down, unconfigured, or checking right after start).
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, db: databaseHealth() });
+});
+
+// Changes through the API must come from this site's own pages. Otherwise any website could
+// make its visitors' browsers create classes (a body-less POST needs no CORS preflight) and
+// use up a school network's class budget. Browsers label requests with Sec-Fetch-Site; older
+// Safari sends only Origin, which is compared with the host instead. A request with neither
+// isn't from a web page (curl, scripts, the smoke test) and passes.
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const hostOf = (origin: string) => {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return null;
+  }
+};
+app.use('/api', (req, res, next) => {
+  if (READ_METHODS.has(req.method)) return next();
+  const site = req.get('sec-fetch-site');
+  const origin = req.get('origin');
+  const allowed = site
+    ? site === 'same-origin' || site === 'none'
+    : !origin || [req.get('host'), req.get('x-forwarded-host')].includes(hostOf(origin) ?? '');
+  if (allowed) return next();
+  res.status(403).json({ error: 'Requests from other websites aren’t allowed.' });
 });
 
 app.use('/api', express.json({ limit: '2kb' }), classesRouter);
@@ -63,17 +90,63 @@ app.use('/api', apiErrorHandler);
 // Compiled output sits deeper (dist/server/src) than the source, so search upward.
 const clientDist = findUp(import.meta.dirname, path.join('client', 'dist'));
 if (clientDist) {
-  app.use(express.static(clientDist));
+  // Vite puts a content hash in every /assets file name, so those files never change and can be
+  // cached for a year. index.html is checked on every visit, so a deploy is picked up at once.
+  const assetsDir = path.join(clientDist, 'assets') + path.sep;
+  const NO_CACHE = { 'Cache-Control': 'no-cache' };
+  app.use(
+    express.static(clientDist, {
+      setHeaders: (res, filePath) => {
+        if (filePath.startsWith(assetsDir)) res.set('Cache-Control', 'public, max-age=31536000, immutable');
+        else if (path.basename(filePath) === 'index.html') res.set(NO_CACHE);
+      },
+    }),
+  );
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
-    res.sendFile(path.join(clientDist, 'index.html'));
+    // A missing file (an old hashed asset, a renamed wordlist) is a 404, not the app's HTML,
+    // which would otherwise be parsed as the file. App routes never contain a dot.
+    if (req.path.startsWith('/assets/') || path.extname(req.path)) {
+      res.status(404).type('text/plain').send('Not found');
+      return;
+    }
+    res.sendFile(path.join(clientDist, 'index.html'), { headers: NO_CACHE });
   });
 }
 
-app.listen(PORT, () => {
+// Locally, listen on this machine only: on campus Wi-Fi others could otherwise reach the dev API.
+// On Railway, listen on every interface (Node's default) so its proxy can reach the app.
+const HOST = process.env.HOST ?? (process.env.RAILWAY_ENVIRONMENT_ID ? undefined : '127.0.0.1');
+const onListen = (err?: Error) => {
+  // Express 5 hands listen errors (port in use, no permission) to this callback instead of
+  // throwing; without this check a clash logged "listening" and exited with status 0.
+  if (err) {
+    console.error(`Server couldn’t listen on port ${PORT}: ${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
   console.log(`Server listening on http://localhost:${PORT}`);
+  databaseHealth(); // start the first check, so health has an answer soon
   startClassCleanup();
-});
+};
+const server = HOST ? app.listen(PORT, HOST, onListen) : app.listen(PORT, onListen);
+
+// A deploy sends SIGTERM: stop taking new connections, let open requests finish (an answer
+// being saved, a join), then close the database pool. Anything still open after 10 seconds is
+// cut off. A second Ctrl+C locally exits at once.
+function shutdown(signal: string) {
+  console.log(`${signal}: finishing open requests, then exiting`);
+  setTimeout(() => process.exit(1), 10_000).unref();
+  server.close(async () => {
+    await getPrisma()
+      ?.$disconnect()
+      .catch(() => {});
+    process.exit(0);
+  });
+  server.closeIdleConnections();
+}
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 
 function findUp(start: string, relative: string): string | null {
   for (let dir = start; ; dir = path.dirname(dir)) {

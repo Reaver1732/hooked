@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type R
 import { CLASS_IDLE_DAYS, type ClassSummary, type Score } from '../../../shared/api.ts';
 import { FLAG_LABELS } from '../../../shared/flags.ts';
 import { api, ApiRequestError } from '../class/api.ts';
-import { dashboardHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
+import { dashboardLinkHash, dashboardUrl, type TeacherCredentials } from '../class/dashboardLink.ts';
 import { storedClasses } from '../class/storage.ts';
 import { ClassJoinPanel } from '../components/ClassJoinPanel.tsx';
 import { ClockIcon, FlagIcon, FishIcon, LockIcon, TrashIcon, UsersIcon } from '../components/icons.tsx';
@@ -53,10 +53,15 @@ type Props = {
   credentials: TeacherCredentials;
   /** The class was deleted or has expired (so this browser can forget it). */
   onGone: () => void;
+  /** The teacher got a new dashboard link; the old key no longer works. */
+  onNewKey: (credentials: TeacherCredentials) => void;
 };
 
-export function DashboardScreen({ credentials, onGone }: Props) {
+export function DashboardScreen({ credentials, onGone, onNewKey }: Props) {
   const { code, teacherKey } = credentials;
+  // A refresh sent with the old key can land after a new link was made; ignore its answer.
+  const keyRef = useRef(teacherKey);
+  keyRef.current = teacherKey;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const playersHeadingRef = useRef<HTMLHeadingElement>(null);
   const qrDialogRef = useRef<HTMLDialogElement>(null);
@@ -67,54 +72,70 @@ export function DashboardScreen({ credentials, onGone }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [summary, setSummary] = useState<ClassSummary | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [keptOnLoad, setKeptOnLoad] = useState(false);
   const [keeping, setKeeping] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkShown, setLinkShown] = useState(false);
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
-  const [newCode, setNewCode] = useState<{ playerId: string; nickname: string; code: string } | null>(null);
+  // A reset rejoin code. Hidden until asked for, because the dashboard is often projected and the
+  // class code, nickname and new code together are exactly what rejoining needs.
+  const [newCode, setNewCode] = useState<{ playerId: string; nickname: string; code: string; shown: boolean } | null>(null);
+  const showCodeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (newCode && !newCode.shown) showCodeRef.current?.focus();
+  }, [newCode]);
   const [gone, setGone] = useState<string | null>(null); // why the class is no longer available
   // `fatal` stops polling (bad key, class gone); otherwise the last good data stays up.
   const [error, setError] = useState<{ message: string; fatal: boolean } | null>(null);
 
-  const handleError = useCallback((err: unknown, fallback: string) => {
-    const status = err instanceof ApiRequestError ? err.status : null;
-    const message = err instanceof ApiRequestError ? err.message : fallback;
-    if (status === 404) setGone(message);
-    else setError({ message, fatal: status === 401 });
-  }, []);
+  const handleError = useCallback(
+    (err: unknown, fallback: string) => {
+      const status = err instanceof ApiRequestError ? err.status : null;
+      if (status === 404) setGone(err instanceof ApiRequestError ? err.message : fallback);
+      else if (status === 401) {
+        setError({
+          message: `This dashboard link doesn’t work for class ${code}. It may be mistyped, or a newer link replaced it. Open the newest link you saved.`,
+          fatal: true,
+        });
+      } else setError({ message: err instanceof ApiRequestError ? err.message : fallback, fatal: false });
+    },
+    [code],
+  );
 
   const refresh = useCallback(async () => {
     try {
-      setSummary(await api.summary(code, teacherKey));
+      const next = await api.summary(code, teacherKey);
+      if (keyRef.current !== teacherKey) return;
+      setSummary(next);
       setUpdatedAt(new Date());
       setError(null);
     } catch (err) {
-      handleError(err, 'Couldn’t load the class.');
+      if (keyRef.current === teacherKey) handleError(err, 'Couldn’t load the class.');
     }
   }, [code, teacherKey, handleError]);
 
   useEffect(() => headingRef.current?.focus({ preventScroll: true }), []);
 
-  // Opening the dashboard counts as activity, once. The 5-second refreshes below don't.
-  useEffect(() => {
-    let cancelled = false;
-    api.keepClass(code, teacherKey).then(
-      () => !cancelled && setKeptOnLoad(true),
-      (err) => !cancelled && handleError(err, 'Couldn’t load the class.'),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [code, teacherKey, handleError]);
+  // Opening the dashboard counts as activity, once: the first keep call that succeeds. The
+  // 5-second refreshes don't. A keep that fails (network, server error) is retried on the next
+  // tick, so one blip doesn't leave the dashboard stuck on "Loading…".
+  const keptRef = useRef(false);
 
-  // Poll every 5 s, one request at a time, and skip while the tab is hidden.
-  const stopped = !keptOnLoad || gone !== null || (error?.fatal ?? false);
+  // Poll every 5 s, one request at a time, and skip the refresh while the tab is hidden.
+  const stopped = gone !== null || (error?.fatal ?? false);
   useEffect(() => {
     if (stopped) return;
     let cancelled = false;
     let timer: number | undefined;
     const tick = async () => {
-      if (document.visibilityState === 'visible') await refresh();
+      if (!keptRef.current) {
+        try {
+          await api.keepClass(code, teacherKey);
+          keptRef.current = true;
+        } catch (err) {
+          if (!cancelled) handleError(err, 'Couldn’t load the class.');
+        }
+      }
+      if (keptRef.current && !cancelled && document.visibilityState === 'visible') await refresh();
       if (!cancelled) timer = window.setTimeout(tick, REFRESH_MS);
     };
     void tick();
@@ -122,9 +143,9 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [refresh, stopped]);
+  }, [refresh, stopped, code, teacherKey, handleError]);
 
-  // Once the class is gone the key in the address bar is useless; drop it, and forget it here.
+  // Once the class is gone its dashboard address is useless; drop it, and forget the key here.
   useEffect(() => {
     if (!gone) return;
     onGoneRef.current();
@@ -151,8 +172,34 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       await navigator.clipboard.writeText(dashboardUrl(credentials));
       setCopied(true);
     } catch {
+      // The address bar no longer holds the key, so show the link to copy by hand.
       setCopied(false);
-      setNotice('Couldn’t copy automatically. Copy the address from your browser’s address bar instead.');
+      setLinkShown(true);
+      setNotice('Couldn’t copy automatically, so the link is shown below. Select it and copy it somewhere safe.');
+    }
+  }
+
+  const [renewing, setRenewing] = useState(false);
+  async function newLink() {
+    if (renewing) return; // not `disabled`: that would drop keyboard focus
+    if (
+      !window.confirm(
+        'Get a new dashboard link? The current link stops working everywhere, including other tabs and devices that have it open. Results are kept.',
+      )
+    ) {
+      return;
+    }
+    setRenewing(true);
+    try {
+      const { teacherKey: next } = await api.newTeacherKey(code, teacherKey);
+      onNewKey({ code, teacherKey: next });
+      setCopied(false);
+      setLinkShown(true);
+      setNotice('New dashboard link ready, shown below. The old one no longer works. Copy this one somewhere safe.');
+    } catch (err) {
+      handleError(err, 'Couldn’t make a new link.');
+    } finally {
+      setRenewing(false);
     }
   }
 
@@ -181,14 +228,29 @@ export function DashboardScreen({ credentials, onGone }: Props) {
     if (!window.confirm(`Give “${p.nickname}” a new rejoin code? Their old code will stop working.`)) return;
     try {
       const { rejoinCode } = await api.resetRejoinCode(code, teacherKey, p.id);
-      setNewCode({ playerId: p.id, nickname: p.nickname, code: rejoinCode });
+      setNewCode({ playerId: p.id, nickname: p.nickname, code: rejoinCode, shown: false });
     } catch (err) {
+      if (await playerAlreadyGone(err, `${p.nickname} is no longer in this class.`)) return;
       handleError(err, 'Couldn’t reset that code.');
     }
   }
 
+  /**
+   * A 404 from a player action usually means just that player is gone (removed on another
+   * device, or a double click), not the class. Refresh to tell them apart: if the class is
+   * gone the refresh says so; otherwise the row disappears and this says what happened.
+   */
+  async function playerAlreadyGone(err: unknown, message: string): Promise<boolean> {
+    if (!(err instanceof ApiRequestError && err.status === 404)) return false;
+    await refresh();
+    setNotice(message);
+    playersHeadingRef.current?.focus();
+    return true;
+  }
+
   async function deleteClass() {
     if (!window.confirm(`Delete class ${code}? All players and their answers will be deleted. This can’t be undone.`)) return;
+    setNewCode(null);
     try {
       await api.deleteClass(code, teacherKey);
       setGone(`Class ${code} was deleted, along with its players and answers.`);
@@ -199,6 +261,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
 
   async function removePlayer(id: string, nickname: string) {
     if (!window.confirm(`Remove “${nickname}” from the class? Their answers will be deleted.`)) return;
+    setNewCode(null);
     try {
       await api.removePlayer(code, teacherKey, id);
       await refresh();
@@ -206,6 +269,7 @@ export function DashboardScreen({ credentials, onGone }: Props) {
       setNotice(`Removed ${nickname}.`);
       playersHeadingRef.current?.focus();
     } catch (err) {
+      if (await playerAlreadyGone(err, `${nickname} was already removed.`)) return;
       handleError(err, 'Couldn’t remove that player.');
     }
   }
@@ -224,7 +288,8 @@ export function DashboardScreen({ credentials, onGone }: Props) {
             This dashboard link doesn’t work
           </h2>
           <p className="text-card-ink-muted">
-            Check that you copied the whole link. Dashboard links are long, and one missing character breaks them.
+            It doesn’t open class {code}. It may be mistyped or cut short (one missing character breaks it), or a newer
+            link replaced it. Open the newest link you saved.
             {saved.length > 0 && ' Or open one of the classes saved on this device below.'}
           </p>
           <a href="/" className={button('primary')}>
@@ -235,7 +300,9 @@ export function DashboardScreen({ credentials, onGone }: Props) {
           <SavedClasses
             classes={saved}
             onOpen={(c) => {
-              window.location.hash = dashboardHash(c);
+              // The full link with its key: the short #dashboard/CODE address may be the one
+              // already showing (and failing), so setting it wouldn't change anything.
+              window.location.hash = dashboardLinkHash(c);
             }}
           />
         )}
@@ -275,12 +342,23 @@ export function DashboardScreen({ credentials, onGone }: Props) {
               {code}
             </p>
           </div>
-          <button type="button" onClick={() => qrDialogRef.current?.showModal()} className={button('primary', 'sm')}>
+          <button
+            type="button"
+            onClick={() => {
+              setNewCode(null); // about to be projected
+              qrDialogRef.current?.showModal();
+            }}
+            className={button('primary', 'sm')}
+          >
             Show QR code
           </button>
         </div>
         <p className="mt-3 text-micro text-ink-muted" aria-live="off">
-          {updatedAt ? `Updated ${updatedAt.toLocaleTimeString()} · refreshes every 5 s` : 'Loading…'}
+          {updatedAt
+            ? `Updated ${updatedAt.toLocaleTimeString()} · refreshes every 5 s`
+            : error?.fatal
+              ? 'Couldn’t open this dashboard.'
+              : 'Loading…'}
         </p>
       </div>
 
@@ -376,12 +454,22 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                 <LockIcon className="size-5 shrink-0 text-card-ink" />
                 Anyone with this link can manage your class. Keep it private.
               </p>
-              <button type="button" onClick={copyLink} className={button('secondary', 'sm')}>
-                {copied ? 'Copied' : 'Copy dashboard link'}
-              </button>
+              <div className="flex flex-wrap items-center gap-4">
+                <button type="button" onClick={copyLink} className={button('secondary', 'sm')}>
+                  {copied ? 'Copied' : 'Copy dashboard link'}
+                </button>
+                <button type="button" onClick={newLink} aria-busy={renewing} className="hk-link text-small">
+                  {renewing ? 'Getting a new link…' : 'Get a new link'}
+                </button>
+              </div>
               <p aria-live="polite" className="sr-only">
                 {copied ? 'Dashboard link copied' : ''}
               </p>
+              {linkShown && (
+                <p className="w-full rounded-chip bg-surface-muted px-3 py-2 font-code text-micro break-all select-all">
+                  {dashboardUrl(credentials)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -433,7 +521,8 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                   {summary.players.map((p) => (
                     <li key={p.id} className="flex flex-col gap-2 py-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 text-heading font-bold wrap-break-word">{p.nickname}</span>
+                        {/* Clipped, so a name joined with stacks of accent marks can't spill over other rows. */}
+                        <span className="-my-1.5 min-w-0 overflow-hidden py-1.5 text-heading font-bold wrap-break-word">{p.nickname}</span>
                         <span
                           className={`rounded-full px-3 py-0.5 text-micro font-bold ${p.passed ? 'bg-good text-on-good' : 'bg-surface-muted text-card-ink'}`}
                         >
@@ -451,12 +540,28 @@ export function DashboardScreen({ credentials, onGone }: Props) {
                         )}
                         {' · '}
                         {p.attempts} {p.attempts === 1 ? 'attempt' : 'attempts'}
-                        {p.inProgress !== null && ` · playing now (${p.inProgress}/${summary.totalMessages})`}
+                        {p.inProgress !== null &&
+                          ` · ${p.inProgressActive ? 'playing now' : 'unfinished run'} (${p.inProgress}/${summary.totalMessages})`}
                       </p>
                       {newCode?.playerId === p.id && (
-                        <p aria-live="polite" className="rounded-control border-2 border-primary bg-surface-muted px-4 py-3 text-small">
-                          New rejoin code for {newCode.nickname}:{' '}
-                          <strong className="font-code text-heading tracking-widest">{newCode.code}</strong>. It’s shown only once.{' '}
+                        <p className="rounded-control border-2 border-primary bg-surface-muted px-4 py-3 text-small">
+                          New rejoin code for {newCode.nickname} is ready. It’s shown only once, so show it where only{' '}
+                          {newCode.nickname} can see it.{' '}
+                          {newCode.shown && (
+                            <>
+                              <strong className="font-code text-heading tracking-widest">{newCode.code}</strong>{' '}
+                            </>
+                          )}
+                          <button
+                            ref={showCodeRef}
+                            type="button"
+                            onClick={() => setNewCode({ ...newCode, shown: !newCode.shown })}
+                            aria-label={`${newCode.shown ? 'Hide code' : 'Show code'} for ${newCode.nickname}`}
+                            className="hk-link"
+                          >
+                            {newCode.shown ? 'Hide code' : 'Show code'}
+                          </button>
+                          {' · '}
                           <TextButton onClick={() => setNewCode(null)}>Done</TextButton>
                         </p>
                       )}

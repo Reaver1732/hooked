@@ -18,6 +18,9 @@ export type RangeResult = {
   candidates: number;
 };
 
+// One row of a range response: the rest of the SHA-1 hash, then how often it was seen.
+const ROW_PATTERN = /^([0-9A-Fa-f]{35}):(\d+)$/;
+
 export async function lookupHash(hash: string, signal?: AbortSignal): Promise<RangeResult> {
   const prefix = hash.slice(0, PREFIX_LENGTH);
   const suffix = hash.slice(PREFIX_LENGTH);
@@ -32,13 +35,19 @@ export async function lookupHash(hash: string, signal?: AbortSignal): Promise<Ra
 
   let breachCount = 0;
   let candidates = 0;
+  let rows = 0;
   for (const line of (await res.text()).split('\n')) {
-    const [rowSuffix, rowCount] = line.trim().split(':');
-    const count = Number(rowCount);
+    const row = ROW_PATTERN.exec(line.trim());
+    if (!row) continue;
+    rows++;
+    const count = Number(row[2]);
     // Rows with a count of 0 are padding added because of the Add-Padding header.
-    if (!rowSuffix || !Number.isFinite(count) || count === 0) continue;
+    if (count === 0) continue;
     candidates++;
-    if (rowSuffix.toUpperCase() === suffix) breachCount = count;
+    if (row[1].toUpperCase() === suffix) breachCount = count;
   }
+  // A real answer always has rows (padding guarantees hundreds). None means something else
+  // answered, like a school web filter's block page: that's an error, not "not found".
+  if (rows === 0) throw new Error('Range lookup returned no hash rows');
   return { breachCount, candidates };
 }

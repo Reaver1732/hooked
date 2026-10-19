@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type Ref } from 'react';
 import { CLASS_CODE_LENGTH, NICKNAME_MAX, REJOIN_CODE_LENGTH } from '../../../shared/api.ts';
 import { api, ApiRequestError } from '../class/api.ts';
+import { codeFromInput } from '../class/joinLink.ts';
 import { forgetPlayer, storedPlayer, type StoredPlayer } from '../class/storage.ts';
 import { UsersIcon } from '../components/icons.tsx';
 import { ScreenHeader } from '../components/ScreenHeader.tsx';
@@ -14,6 +15,8 @@ type Props = {
   onBack: () => void;
   /** Filled in from a join link, so the student only needs a nickname. */
   initialCode?: string;
+  /** The join link's code didn't fit even after cleaning up; say so. */
+  badLink?: boolean;
 };
 
 const cleanCode = (value: string, length: number) => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, length);
@@ -21,7 +24,7 @@ const CODE_INPUT = 'hk-input mt-2 min-h-16 text-center font-code text-title font
 const LABEL = 'text-small font-bold';
 const FORM = 'hk-card flex flex-col gap-5 p-5 sm:p-6';
 
-export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
+export function JoinScreen({ onJoined, onBack, initialCode = '', badLink = false }: Props) {
   const codeId = useId();
   const nicknameId = useId();
   const rejoinCodeId = useId();
@@ -36,15 +39,18 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
   const [rejoinCode, setRejoinCode] = useState('');
   const [saved, setSaved] = useState<StoredPlayer | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // "No such class" belongs to the Class code field, so it's shown there, not under Nickname.
-  const [codeError, setCodeError] = useState<string | null>(null);
+  // "No such class" belongs to the Class code field, so it's shown there, not under Nickname. So
+  // does a join link whose code still doesn't fit after cleaning up.
+  const [codeError, setCodeError] = useState<string | null>(
+    badLink ? 'The code in that join link doesn’t look right. Type the code your teacher shows.' : null,
+  );
   const codeErrorId = useId();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (initialCode) nicknameRef.current?.focus();
+    if (initialCode && !badLink) nicknameRef.current?.focus();
     else headingRef.current?.focus({ preventScroll: true });
-  }, [initialCode]);
+  }, [initialCode, badLink]);
 
   // A player this browser remembers for this class? Offer it only if the server agrees
   // they still exist; otherwise forget them.
@@ -60,7 +66,11 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
         setSaved({ ...remembered, nickname: progress.nickname });
       },
       (err) => {
-        if (!cancelled && err instanceof ApiRequestError && err.status === 404) forgetPlayer(code);
+        if (cancelled) return;
+        if (err instanceof ApiRequestError && err.status === 404) forgetPlayer(code);
+        // Couldn't check right now (network, busy server): still offer to continue as the
+        // remembered player rather than pushing them to join again under a new name.
+        else setSaved(remembered);
       },
     );
     return () => {
@@ -134,7 +144,7 @@ export function JoinScreen({ onJoined, onBack, initialCode = '' }: Props) {
         id={codeId}
         value={code}
         onChange={(e) => {
-          setCode(cleanCode(e.target.value, CLASS_CODE_LENGTH));
+          setCode(codeFromInput(e.target.value).slice(0, CLASS_CODE_LENGTH));
           setCodeError(null);
         }}
         required

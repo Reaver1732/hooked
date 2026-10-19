@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messages, quickRoundMessages, type Message } from '../../shared/messages.ts';
 import { api, ApiRequestError } from './class/api.ts';
-import { dashboardHash, readDashboardHash, type TeacherCredentials } from './class/dashboardLink.ts';
+import {
+  dashboardHash,
+  forgetDashboardKey,
+  rememberDashboardKey,
+  takeDashboardHash,
+  type TeacherCredentials,
+} from './class/dashboardLink.ts';
 import { takeJoinParam } from './class/joinLink.ts';
 import {
   activeSession,
@@ -11,6 +17,7 @@ import {
   rememberActiveSession,
   rememberClass,
   rememberPlayer,
+  storedClasses,
 } from './class/storage.ts';
 import type { Answer } from './game/types.ts';
 import { Notice, Wordmark } from './design/parts.tsx';
@@ -31,19 +38,31 @@ type GameScreen =
 type Screen =
   | GameScreen
   | { name: 'password'; back: GameScreen }
-  | { name: 'join'; initialCode?: string }
+  | { name: 'join'; initialCode?: string; badLink?: boolean }
   | { name: 'teacher' }
-  | { name: 'dashboard'; credentials: TeacherCredentials }
+  // openedWith: the key the dashboard was opened with. Opening another link (say, a corrected
+  // one after a wrong key) starts the dashboard afresh; "Get a new link" doesn't.
+  | { name: 'dashboard'; credentials: TeacherCredentials; openedWith: string }
   | { name: 'guide'; back: Screen };
 
+const INCOMPLETE_LINK =
+  'That dashboard link isn’t complete. Open the whole link you saved: it ends with a long private key.';
+// Set when the page opened on an unusable dashboard link, so the start screen can say why.
+let openedOnIncompleteLink = false;
+
 function initialScreen(): Screen {
-  const credentials = readDashboardHash();
-  if (credentials) return { name: 'dashboard', credentials };
+  const credentials = takeDashboardHash();
+  if (credentials === 'incomplete') {
+    openedOnIncompleteLink = true;
+    return { name: 'start' };
+  }
+  if (credentials) return { name: 'dashboard', credentials, openedWith: credentials.teacherKey };
   if (window.location.hash === TEACHER_GUIDE_HASH) return { name: 'guide', back: { name: 'start' } };
 
   // A join link or QR code: <site>/?join=CODE
   const joinCode = takeJoinParam();
-  if (joinCode) return { name: 'join', initialCode: joinCode };
+  if (typeof joinCode === 'string') return { name: 'join', initialCode: joinCode };
+  if (joinCode) return { name: 'join', initialCode: joinCode.unusable, badLink: true };
 
   // <site>/?quick=1 starts the 5-message quick round (solo only, so not when this tab is in a class).
   // The parameter is removed once read, so a refresh after "Play all 15" doesn't restart it.
@@ -83,6 +102,31 @@ const SCREEN_WIDTHS: Record<Screen['name'], string> = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+type AnswerBody = Parameters<typeof api.submitAnswer>[0];
+
+/** Network errors and server errors may pass; anything else (404, 429, …) won't on a retry. */
+const isRetryable = (err: unknown) => !(err instanceof ApiRequestError) || err.status === null || err.status >= 500;
+
+/**
+ * Starts (or resumes) a class attempt, trying again twice (after 0.5 s and 1 s) on network or
+ * server errors, so one blip doesn't turn the whole round into an uncounted solo round.
+ */
+async function startAttemptWithRetry(playerId: string) {
+  for (let tryNo = 0; ; tryNo++) {
+    try {
+      return await api.startAttempt(playerId);
+    } catch (err) {
+      if (tryNo >= 2 || !isRetryable(err)) throw err;
+      await sleep(500 * 2 ** tryNo);
+    }
+  }
+}
+
+/** Shown while answers are waiting to be re-sent. Cleared once they all get through. */
+const QUEUED_MESSAGE = 'Some answers haven’t reached your class yet. Keep this page open and they’ll be sent.';
+/** How often queued answers are re-sent. */
+const RESEND_MS = 5000;
+
 /**
  * Rebuilds the answers a resumed attempt already has, in deck order. Stops at the first
  * unanswered message, which is where play resumes (answers are given in order).
@@ -104,9 +148,18 @@ export default function App() {
   // Restored from this tab's sessionStorage, so a refresh stays in the class.
   const [session, setSession] = useState<ClassSession | null>(activeSession);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(() => (openedOnIncompleteLink ? INCOMPLETE_LINK : null));
   /** A new player's rejoin code, shown once on the start screen. */
   const [rejoinCode, setRejoinCode] = useState<string | null>(null);
+  /**
+   * Answers that failed every quick retry, keyed by attempt and message. They're re-sent on a
+   * timer, when the browser comes back online, and before the next round starts. Re-sending is
+   * safe: the server keeps only the first answer to each message in an attempt.
+   */
+  const queuedRef = useRef(new Map<string, { code: string; body: AnswerBody }>());
+  const flushingRef = useRef(false);
+  /** Answers being sent right now, so the next round can wait for them. */
+  const inFlightRef = useRef(new Set<Promise<void>>());
   /** Answers still being sent to the class (Results waits on these before saying they arrived). */
   const [pendingSends, setPendingSends] = useState(0);
   /** The class attempt answers are reported to (set when a class round starts). */
@@ -139,8 +192,11 @@ export default function App() {
   // already-open tab also arrives here.
   useEffect(() => {
     const onHashChange = () => {
-      const credentials = readDashboardHash();
-      if (credentials) setScreen({ name: 'dashboard', credentials });
+      const credentials = takeDashboardHash();
+      if (credentials === 'incomplete') {
+        setScreen({ name: 'start' });
+        setNotice(INCOMPLETE_LINK);
+      } else if (credentials) setScreen({ name: 'dashboard', credentials, openedWith: credentials.teacherKey });
       else if (window.location.hash === TEACHER_GUIDE_HASH) setScreen((s) => (s.name === 'guide' ? s : { name: 'guide', back: s }));
       // The hash went away (browser Back): leave the dashboard or the guide.
       else setScreen((s) => (s.name === 'dashboard' ? { name: 'start' } : s.name === 'guide' ? s.back : s));
@@ -157,36 +213,144 @@ export default function App() {
     setNotice('This class was closed. You can keep playing on your own.');
   }, []);
 
-  /** After a 404 for this player: tell "class closed" apart from "you were removed". */
+  /**
+   * After a 404 for this player, the player is gone either way, so leave the class: nothing more
+   * is sent for this round, and the header and results stop naming the class. The status
+   * check only picks the wording ("class closed" or "you were removed").
+   */
   const explainMissingPlayer = useCallback(
     async (code: string, removedMessage: string) => {
+      attemptIdRef.current = null;
       try {
         await api.classStatus(code);
-        setSyncError(removedMessage);
       } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 404) closeSession(code);
-        else setSyncError(removedMessage);
+        if (err instanceof ApiRequestError && err.status === 404) {
+          closeSession(code);
+          return;
+        }
       }
+      forgetPlayer(code);
+      setSession(null);
+      setSyncError(removedMessage);
     },
     [closeSession],
   );
 
+  // The server keeps the first answer per message. If another tab or device answered first, it
+  // reports that answer's grading; show that answer here too, so this screen agrees with the
+  // dashboard. Only for the round on screen.
+  const [correction, setCorrection] = useState<{ messageId: string; guessedPhish: boolean; seq: number } | null>(null);
+  const applyServerGrading = useCallback((body: AnswerBody, correct: boolean) => {
+    const message = messages.find((m) => m.id === body.messageId);
+    if (!message || body.attemptId !== attemptIdRef.current) return;
+    const guessedPhish = correct ? message.isPhish : !message.isPhish;
+    if (guessedPhish === (body.choice === 'phish')) return;
+    setCorrection((c) => ({ messageId: message.id, guessedPhish, seq: (c?.seq ?? 0) + 1 }));
+    setScreen((s) =>
+      s.name === 'results'
+        ? { ...s, answers: s.answers.map((a) => (a.message.id === message.id ? { ...a, guessedPhish } : a)) }
+        : s,
+    );
+    setNotice('This message was already answered for your class in another tab or on another device. That answer is the one that counts, so it’s shown here.');
+  }, []);
+
+  /** One try at sending an answer: 'done' (sent, or no point retrying) or 'retry'. */
+  const trySend = useCallback(
+    async (code: string, body: AnswerBody, { queued = false } = {}): Promise<'done' | 'retry'> => {
+      try {
+        const result = await api.submitAnswer(body);
+        if (result.alreadyAnswered) applyServerGrading(body, result.correct);
+        return 'done';
+      } catch (err) {
+        if (err instanceof ApiRequestError && err.status === 404) {
+          await explainMissingPlayer(code, err.message);
+          return 'done';
+        }
+        if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
+          // A queued answer can arrive after its attempt finished; that's not worth an error.
+          if (!(queued && err.status === 409)) setSyncError(err.message);
+          return 'done';
+        }
+        return 'retry';
+      }
+    },
+    [explainMissingPlayer, applyServerGrading],
+  );
+
+  /** Re-sends queued answers in order, stopping at the first that still can't get through. */
+  const flushQueued = useCallback(async () => {
+    if (flushingRef.current) return;
+    flushingRef.current = true;
+    try {
+      const queued = queuedRef.current;
+      for (const [key, { code, body }] of [...queued]) {
+        if ((await trySend(code, body, { queued: true })) === 'retry') break;
+        queued.delete(key);
+      }
+      if (queued.size === 0) setSyncError((e) => (e === QUEUED_MESSAGE ? null : e));
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [trySend]);
+
+  useEffect(() => {
+    const resend = () => {
+      if (queuedRef.current.size) void flushQueued();
+    };
+    const timer = window.setInterval(resend, RESEND_MS);
+    window.addEventListener('online', resend);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('online', resend);
+    };
+  }, [flushQueued]);
+
+  // One start at a time. A double click would otherwise send two starts, and a slow reply could
+  // pull the student off a screen they've moved to since, or reset a round to message 1.
+  const startingRef = useRef(false);
+  const [starting, setStarting] = useState(false);
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
   const play = async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    try {
+      await startRound(screenRef.current);
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
+    }
+  };
+  const startRound = async (from: Screen) => {
+    const movedOn = () => screenRef.current !== from;
     let initialAnswers: Answer[] = [];
+    // Let the last round's answers land first (in flight, then queued), so that round can
+    // finish before the next one starts; otherwise the server would resume the old attempt.
+    await Promise.allSettled([...inFlightRef.current]);
+    if (queuedRef.current.size) await flushQueued();
+    if (movedOn()) return;
     attemptIdRef.current = null;
+    setCorrection(null);
     setSyncError(null);
     setNotice(null);
     if (session) {
       try {
         // Resumes the unfinished attempt (if any) or starts a new one.
-        const attempt = await api.startAttempt(session.playerId);
+        const attempt = await startAttemptWithRetry(session.playerId);
+        if (movedOn()) return;
         attemptIdRef.current = attempt.attemptId;
         initialAnswers = resumedAnswers(attempt.answers);
       } catch (err) {
+        if (movedOn()) return;
         if (err instanceof ApiRequestError && err.status === 404) {
           await explainMissingPlayer(session.code, 'You’re no longer in this class. Join again, or keep playing on your own.');
-          forgetPlayer(session.code);
-          setSession(null);
+          return;
+        }
+        // The server said no for a reason (e.g. too many requests): say what it said and stay
+        // here, rather than blaming the connection and starting a round that won't count.
+        if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
+          setSyncError(err.message);
           return;
         }
         setSyncError('Couldn’t reach your class, so this round won’t count for it. Check your connection.');
@@ -200,6 +364,7 @@ export default function App() {
   const playQuick = () => {
     if (session) return;
     attemptIdRef.current = null;
+    setCorrection(null);
     setSyncError(null);
     setNotice(null);
     setRound((r) => r + 1);
@@ -214,6 +379,11 @@ export default function App() {
     guidePushedRef.current = true;
     window.location.hash = TEACHER_GUIDE_HASH;
   };
+  // Opening a dashboard adds #dashboard/CODE to history; the key stays in this tab's memory.
+  const openDashboard = (credentials: TeacherCredentials) => {
+    rememberDashboardKey(credentials);
+    window.location.hash = dashboardHash(credentials);
+  };
 
   const leaveRoundQuestion = session
     ? 'Go back to the start? Your answers so far are saved for your class, and Start picks up where you left off.'
@@ -222,8 +392,7 @@ export default function App() {
   // Browser Back mid-round asks first, like the wordmark does. A round adds one history entry
   // (same address); Back pops it, and if the player cancels, it's put back. From the results,
   // Back goes to the start screen. Hash changes (dashboard, guide) are left to hashchange.
-  const screenRef = useRef(screen);
-  screenRef.current = screen;
+  // (screenRef, the current screen, is declared with the start guard above.)
   const roundEntryRef = useRef(false);
   useEffect(() => {
     if (screen.name !== 'play' || roundEntryRef.current) return;
@@ -266,7 +435,7 @@ export default function App() {
   };
 
   // Report each answer to the class. The server grades it; we only send the choice.
-  const reportAnswer = useCallback(
+  const sendAnswer = useCallback(
     async (answer: Answer) => {
       if (!session) return;
       const attemptId = attemptIdRef.current;
@@ -279,29 +448,28 @@ export default function App() {
       };
       setPendingSends((n) => n + 1);
       try {
+        // Three quick tries (waiting 1 s, then 2 s, between them). After that the answer is
+        // queued and re-sent later instead of being dropped.
         for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            await api.submitAnswer(body);
-            return;
-          } catch (err) {
-            if (err instanceof ApiRequestError && err.status === 404) {
-              await explainMissingPlayer(session.code, err.message);
-              return;
-            }
-            // Other 4xx won't get better on retry.
-            if (err instanceof ApiRequestError && err.status !== null && err.status < 500) {
-              setSyncError(err.message);
-              return;
-            }
-            await sleep(1000 * 2 ** attempt);
-          }
+          if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+          if ((await trySend(session.code, body)) === 'done') return;
         }
-        setSyncError('Couldn’t send an answer to your class. Check your connection.');
+        queuedRef.current.set(`${attemptId}:${body.messageId}`, { code: session.code, body });
+        setSyncError(QUEUED_MESSAGE);
       } finally {
         setPendingSends((n) => n - 1);
       }
     },
-    [session, explainMissingPlayer],
+    [session, trySend],
+  );
+  const reportAnswer = useCallback(
+    (answer: Answer) => {
+      const sending = sendAnswer(answer);
+      inFlightRef.current.add(sending);
+      void sending.finally(() => inFlightRef.current.delete(sending));
+      return sending;
+    },
+    [sendAnswer],
   );
 
   const inGame = screen.name === 'start' || screen.name === 'play' || screen.name === 'results';
@@ -310,6 +478,7 @@ export default function App() {
   const startProps: StartScreenProps = {
     session,
     onStart: play,
+    starting,
     onQuickStart: session ? undefined : playQuick,
     onJoinClass: () => setScreen({ name: 'join' }),
     onLeaveClass: () => {
@@ -328,9 +497,7 @@ export default function App() {
     },
     rejoinCode,
     onDismissRejoinCode: () => setRejoinCode(null),
-    onOpenDashboard: (credentials) => {
-      window.location.hash = dashboardHash(credentials);
-    },
+    onOpenDashboard: openDashboard,
     onTeacher: () => setScreen({ name: 'teacher' }),
     // Only used while the start screen is showing, so "back" is the start screen.
     onTeacherGuide: openGuide,
@@ -342,6 +509,7 @@ export default function App() {
           deck: screen.deck,
           initialAnswers: screen.initialAnswers,
           onAnswer: session && !screen.quick ? reportAnswer : undefined,
+          correction,
           onFinish: (answers: Answer[]) => setScreen({ name: 'results', answers, quick: screen.quick }),
         }
       : null;
@@ -384,6 +552,7 @@ export default function App() {
             classCode={screen.quick || syncError ? undefined : session?.code}
             classSaving={pendingSends > 0}
             onPlayAgain={play}
+            starting={starting}
             onPasswordCheck={() => openPasswordCheck(screen)}
           />
         )}
@@ -391,6 +560,7 @@ export default function App() {
         {screen.name === 'join' && (
           <JoinScreen
             initialCode={screen.initialCode}
+            badLink={screen.badLink}
             onBack={() => setScreen({ name: 'start' })}
             onJoined={(joined, newRejoinCode) => {
               rememberPlayer(joined);
@@ -406,9 +576,7 @@ export default function App() {
             onBack={() => setScreen({ name: 'start' })}
             onTeacherGuide={openGuide}
             onCreated={(credentials) => rememberClass({ ...credentials, createdAt: new Date().toISOString() })}
-            onOpenDashboard={(credentials) => {
-              window.location.hash = dashboardHash(credentials);
-            }}
+            onOpenDashboard={openDashboard}
           />
         )}
         {screen.name === 'guide' && (
@@ -428,10 +596,18 @@ export default function App() {
         )}
         {screen.name === 'dashboard' && (
           <DashboardScreen
-            // Keyed by the key too, so opening a corrected link starts the dashboard afresh.
-            key={`${screen.credentials.code}:${screen.credentials.teacherKey}`}
+            key={`${screen.credentials.code}:${screen.openedWith}`}
             credentials={screen.credentials}
-            onGone={() => forgetClass(screen.credentials.code)}
+            onGone={() => {
+              forgetClass(screen.credentials.code);
+              forgetDashboardKey(screen.credentials.code);
+            }}
+            onNewKey={(credentials) => {
+              const saved = storedClasses().find((c) => c.code === credentials.code);
+              if (saved) rememberClass({ ...saved, teacherKey: credentials.teacherKey });
+              rememberDashboardKey(credentials);
+              setScreen((s) => (s.name === 'dashboard' ? { ...s, credentials } : s));
+            }}
           />
         )}
       </main>

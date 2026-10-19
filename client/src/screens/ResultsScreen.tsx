@@ -18,6 +18,8 @@ type Props = {
   quick?: boolean;
   /** How many messages the full game has. */
   totalMessages: number;
+  /** The next round is being started (Play again is ignored meanwhile). */
+  starting?: boolean;
 };
 
 function titleFor(score: number, total: number): string {
@@ -45,7 +47,7 @@ function messageLabel(m: Message): string {
 }
 
 export function ResultsScreen(props: Props) {
-  const { answers, onPlayAgain, onPasswordCheck, classCode, classSaving = false, quick = false, totalMessages } = props;
+  const { answers, onPlayAgain, onPasswordCheck, classCode, classSaving = false, quick = false, totalMessages, starting = false } = props;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -96,8 +98,8 @@ export function ResultsScreen(props: Props) {
           </p>
         )}
         <div className="relative mt-6 flex flex-wrap gap-4">
-          <button type="button" onClick={onPlayAgain} className={button('primary', 'lg')}>
-            {quick ? `Play all ${totalMessages}` : 'Play again'}
+          <button type="button" onClick={onPlayAgain} aria-busy={starting} className={button('primary', 'lg')}>
+            {starting ? 'Starting…' : quick ? `Play all ${totalMessages}` : 'Play again'}
           </button>
           <button type="button" onClick={onPasswordCheck} className={button('secondary', 'lg')}>
             Check a password
