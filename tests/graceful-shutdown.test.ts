@@ -25,10 +25,15 @@ test('SIGTERM finishes the open request, refuses new ones, and exits 0', { skip:
     if (await fetch(`${base}/api/health`).then((r) => r.ok, () => false)) break;
     await new Promise((r) => setTimeout(r, 100));
   }
+  // If setup fails (no database, say), stop the server, or it keeps this test file from exiting.
+  const stopServer = (e: unknown) => {
+    if (child.exitCode === null) child.kill();
+    throw e;
+  };
   const api = client(base);
-  const cls = await makeClass(api);
+  const cls = await makeClass(api).catch(stopServer);
   const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
-  await db.connect();
+  await db.connect().catch(stopServer);
   try {
     assert.equal((await db.query('select current_database() as d')).rows[0].d, 'hooked_dev', 'only ever run against the dev database');
     // Hold the class row so a join stays open while the server is told to stop.
